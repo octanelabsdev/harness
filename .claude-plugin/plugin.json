@@ -1,7 +1,7 @@
 {
   "name": "harness",
   "description": "A stack-agnostic engineering harness for Claude Code: enforcement hooks (SessionStart status banner, Stop verification gate, PreToolUse pipeline gate), guardrail playbooks, and a PM delivery pipeline. Config-driven per stack; bring your own agents.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "author": { "name": "Octane Labs", "url": "https://github.com/octanelabsdev" },
   "homepage": "https://harness.octanelabs.dev/",
   "license": "MIT"
