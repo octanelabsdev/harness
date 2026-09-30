@@ -123,7 +123,7 @@ These commands ship with the plugin:
 | `/harness:agents [--copy] [owner/repo]` | Brings a stack's agent bundle into `.claude/agents/`. No args → the stack's default bundle (e.g. Rails → `octanelabsdev/rails-agents`), **symlinked** and gitignored (per-developer). `--copy` commits real files (whole team). Pass `owner/repo` (or a git URL) to override the bundle. See [agents.md](agents.md). |
 | `/harness:status` | Inventory of what's loaded/configured in this project (components, stack profile, agents, MCP, bookshelf, session markers). |
 | `/harness:doctor` | Deterministic health check — verifies hooks, tool scripts, schema, and config are present and wired. Exits non-zero on a gap (CI/pre-push safe). |
-| `/harness:update [--apply]` | Checks whether a newer release tag exists (read-only by default). With `--apply`, bumps this project's pinned `ref` to the latest tag; then run `/reload-plugins` to activate. See [Updating](#updating). |
+| `/harness:update [--apply]` | Checks whether a newer release tag exists (read-only by default). With `--apply`, bumps this project's pinned `ref` to the latest tag; then run `/plugin marketplace update harness` and `/reload-plugins` to activate. See [Updating](#updating). |
 
 ## Updating
 
@@ -133,18 +133,22 @@ These commands ship with the plugin:
 **The pinned plugin version.** The harness is a *third-party* marketplace, so Claude Code does **not**
 auto-update a `ref`-pinned marketplace — that's the point (a moving ref would let any push to the harness
 repo run on every machine at next session). Bumping from, say, `v0.2.0` to `v0.3.0` means changing the
-pinned `ref` in the `settings.json` that declares the marketplace. How it actually works (verified on CLI
-2.1.283): the **settings source is authoritative**; the machine cache (`~/.claude/plugins/known_marketplaces.json`)
-is reconciled *from* settings at session startup or on `/reload-plugins`. So the update is:
+pinned `ref` in the `settings.json` that declares the marketplace. The **settings source is
+authoritative** — but `/reload-plugins` alone does **not** re-fetch the marketplace clone at the new tag;
+the old version keeps loading until `/plugin marketplace update` pulls it (observed moving 0.2.1 → 0.2.2).
+So the update is:
 
 ```
-/harness:update            # check: installed vs latest release tag (read-only)
-/harness:update --apply     # bump the pinned ref (+sha) in settings to the latest tag
-/reload-plugins            # activate it (or restart Claude Code)
+/harness:update                      # check: installed vs latest release tag (read-only)
+/harness:update --apply              # bump the pinned ref (+sha) in settings to the latest tag
+/plugin marketplace update harness   # fetch the marketplace at the newly pinned tag
+/reload-plugins                      # load it
+/harness:update                      # confirm: should report up to date
 ```
 
-`/plugin marketplace update` and `claude plugin update` only refresh the *same* ref — they do **not**
-cross tags. For a **fleet**, re-run the installer instead (it re-pins each repo's committed settings):
+`/plugin marketplace update` fetches whatever `ref` settings currently pins — on its own it does **not**
+move you to a newer tag; the `--apply` bump is what crosses tags. For a **fleet**, re-run the installer
+instead (it re-pins each repo's committed settings):
 
 ```sh
 ~/harness/install.sh --ref v0.3.0 --yes .     # rewrites settings.json to the new tag (+ its sha)
