@@ -4,9 +4,10 @@
 # Consumers pin the harness marketplace to an immutable release tag (install.sh writes
 # extraKnownMarketplaces.<mkt>.source.ref[+sha] into settings.json). A pinned marketplace does NOT
 # auto-update, so a new release does not reach a pinned machine on its own. Moving to a newer tag is:
-#   bump the `ref` (and sha) in settings.json  →  /reload-plugins (or restart) to re-fetch.
-# That is ALL this does. There is no `remove + re-add`; the settings source is authoritative and the
-# machine cache (~/.claude/plugins/known_marketplaces.json) is reconciled from it at startup/reload.
+#   bump the `ref` (and sha) in settings.json  →  /plugin marketplace update <mkt>  →  /reload-plugins.
+# This script only does the first step. There is no `remove + re-add`; the settings source is
+# authoritative, but a reload alone does NOT re-fetch the marketplace clone at the new tag — the old
+# version keeps loading until `/plugin marketplace update` pulls it (observed on 0.2.1 → 0.2.2).
 #
 # NOTE: only `ref` is observably enforced through the settings→startup path (a tag-level pin); the `sha`
 # is written for completeness but is not the guarantee. Protect your release tags. See the discovery note
@@ -58,7 +59,7 @@ fi
 # A newer tag exists.
 if [ "$MODE" = check ]; then
   echo "  ⤴ a newer release is available: $CUR → $LATEST_TAG"
-  echo "     run  /harness:update --apply  to move to it (then /reload-plugins)."
+  echo "     run  /harness:update --apply  to move to it (then /plugin marketplace update $MKT_NAME, /reload-plugins)."
   exit 10
 fi
 
@@ -107,6 +108,8 @@ then
 fi
 
 echo
-echo "  Activate it:  run  /reload-plugins   (or restart Claude Code)."
-echo "  Then verify:  bash \"$PLUGIN/tools/harness_update.sh\" --check   should report up to date."
+echo "  Activate it:  run  /plugin marketplace update $MKT_NAME   then  /reload-plugins"
+echo "                (a reload alone keeps loading $CUR — the update step fetches $LATEST_TAG)"
+# Not this script's own path: it lives in the $CUR cache dir and would keep reporting $CUR.
+echo "  Then verify:  run  /harness:update   — it should report up to date."
 exit 0
