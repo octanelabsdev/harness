@@ -55,6 +55,36 @@ Re-link them (see [agents.md](agents.md)).
 - Verification gate: edit `hooks/verification_gate.sh` per the note at its tail (swap `exit 0` for
   `exit 2` when warnings exist). Promote only after the warn phase is quiet on false positives.
 
+## The `rails` MCP server won't connect (`-32602 Unsupported protocol version`)
+On a **legacy Rails app** the installer's in-bundle MCP setup pins a dead version of the server. The
+installer writes `.mcp.json` with `bundle exec rails-mcp-server` and adds `gem "rails-mcp-server"` to
+the Gemfile — but on an old app (e.g. Rails 7.0 / rack 2.2) bundler can only resolve rails-mcp-server
+**1.0.1**, because every protocol-compatible release (1.2.0+ switched to `fast-mcp`; 1.6.1/2.0.0 need
+newer `activesupport`) conflicts with the app's locked deps. 1.0.1 → `mcp-rb 0.3.2` speaks **only** MCP
+protocol `2024-11-05` and *hard-rejects* the newer version Claude Code offers instead of negotiating
+down — so the handshake dies with `-32602`.
+
+**Don't** try the mise shim (`~/.local/share/mise/shims/rails-mcp-server`) as a fix: it's
+cwd-sensitive and, launched from the project dir, resolves to the same broken in-bundle 1.0.1 (its
+`version` output from `$HOME` is misleading).
+
+**Fix — run it standalone, by absolute path.** rails-mcp-server is a standalone tool: it reads
+`~/.config/rails-mcp/projects.yml` and introspects by shelling into the target app's own `bin/rails`,
+so it never needs to be in the app bundle. Install a current version outside the bundle
+(`gem install rails-mcp-server` under a modern Ruby, or via mise global) and point `.mcp.json` at it
+directly:
+
+```json
+{ "mcpServers": { "rails": {
+  "command": "/absolute/path/to/rails-mcp-server",
+  "args": ["--mode", "stdio"]
+} } }
+```
+
+2.0.0 (fast-mcp) negotiates the handshake and Claude Code connects (after a restart). Then remove
+`gem "rails-mcp-server"` from the app Gemfile. **Installer TODO:** stop adding the gem in-bundle and
+stop using `bundle exec` — detect a standalone install and reference its absolute path instead.
+
 ## Validate a change to the harness itself
 ```sh
 claude plugin validate . --strict
