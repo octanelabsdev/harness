@@ -18,6 +18,7 @@ one reference the current moment calls for, not all of them.
 | are about to write "done / fixed / works / passing / complete", or run `git commit` / `gh pr create` | `references/VERIFY.md` |
 | are about to call a code path live/running, blame it for a production symptom, or size its cost/impact/priority | `references/RUNTIME.md` |
 | are about to conclude code is dead/wrong/removable, override a comment/doc/author, or build a plan on how an external system/API/framework behaves | `references/MECHANISM.md` |
+| surface a problem that isn't the current task (a gap, stale data, a dead job, a bug next door) | `references/VERIFY.md` (V13) |
 
 Each reference states its trigger in its opening line and lists IDed items with an echo protocol
 (`PASS`/`FAIL`/`N/A`, each with quoted evidence). The playbooks are stack-agnostic; examples span
