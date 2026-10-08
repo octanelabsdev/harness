@@ -13,14 +13,17 @@ the task framing introduced.
 
 ## Why an artifact (and why you can't fake it)
 A Stop hook can't spawn a reviewer, so the gate can't *run* the review — it verifies what you wrote.
-`tools/review_verify.sh` refuses an artifact whose `diff_sha` doesn't match the current tree, or whose
+`tools/review_verify.sh` refuses an artifact whose `diff_sha` doesn't match the current tree (measured
+against the recorded `base` commit, so committing the reviewed work doesn't invalidate it), or whose
 findings cite `file:line`s that aren't in the diff. So you cannot satisfy the gate by hand-writing a
 green result: the review has to engage with the real changed lines, on the real current diff.
 
 ## Steps
 1. **Pin the diff's identity.** From the repo root, run
    `bash ${CLAUDE_PLUGIN_ROOT}/tools/review_verify.sh --emit-sha` to get the canonical `diff_sha` for the
-   current tree, and capture the diff itself (`git diff HEAD` plus untracked files, excluding `.claude/`).
+   current tree and `bash ${CLAUDE_PLUGIN_ROOT}/tools/review_verify.sh --emit-base` to get the `base`
+   commit it is measured against, and capture the diff itself (`git diff HEAD` plus untracked files,
+   excluding `.claude/`).
 2. **Delegate to the configured reviewer, BLIND.** Spawn your project's reviewer agent (Rails ->
    `dhh-code-reviewer`) in a fresh context and hand it ONLY: the diff, the review rules / failure
    catalog, and the instruction to review blind. Do NOT pass the story, the card, the conversation, the
@@ -29,7 +32,9 @@ green result: the review has to engage with the real changed lines, on the real 
    scenario; state plainly when there are no critical issues.
 3. **Write the artifact** to `.claude/.review/current.json`, conforming to
    `${CLAUDE_PLUGIN_ROOT}/tools/review-findings.schema.json`:
-   - `diff_sha`: the value from step 1 (re-run `--emit-sha` if you edited anything after reviewing).
+   - `diff_sha` and `base`: the values from step 1 (re-run both if you edited anything after
+     reviewing). With `base` recorded, committing the reviewed changes keeps the artifact fresh; any
+     further edit, committed or not, makes it stale.
    - `verdict`: `pass` (no critical findings) or `changes-requested`.
    - `findings[]`: each with `file`, `line` (a line in the diff), `severity` (`critical`|`improvement`),
      `category`, `summary`, `failure_scenario`, and `evidence` — for a structural claim, the ground-truth

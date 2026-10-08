@@ -8,11 +8,11 @@
   "properties": {
     "base": {
       "type": "string",
-      "description": "The ref/sha the reviewed diff was taken against (informational; the gate reviews `git diff HEAD` + untracked)."
+      "description": "Full sha of HEAD when the review was stamped (`review_verify.sh --emit-base`). The gate re-renders the current tree against this commit, so committing the reviewed work keeps the artifact fresh while any later edit makes it stale. Absent, or not a full sha (e.g. a symbolic ref), the gate checks only the uncommitted diff (`git diff HEAD` + untracked)."
     },
     "diff_sha": {
       "type": "string",
-      "description": "sha256 of the exact diff that was reviewed. The gate recomputes the current diff and refuses the artifact if this does not match (edited-after-review => stale).",
+      "description": "sha256 of the exact diff that was reviewed (`review_verify.sh --emit-sha`). The gate recomputes the current diff (against `base` when present) and refuses the artifact if this does not match (edited-after-review => stale).",
       "pattern": "^[0-9a-f]{64}$"
     },
     "reviewed_at": {
