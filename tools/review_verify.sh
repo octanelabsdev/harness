@@ -56,7 +56,9 @@ changed_lines="$(current_diff | awk '
 bad=0
 while IFS= read -r fl; do
   [ -n "$fl" ] || continue
-  printf '%s\n' "$changed_lines" | grep -qxF -- "$fl" \
+  # A here-string, not a pipe: grep -q exits on the first match, and under pipefail the producer's
+  # SIGPIPE would fail the check and reject a valid citation on a large diff.
+  grep -qxF -- "$fl" <<<"$changed_lines" \
     || { echo "review: finding cites $fl, which is not a changed line in the current diff" >&2; bad=1; }
 done < <(jq -r '.findings[]? | "\(.file):\(.line)"' "$ART")
 [ "$bad" = 0 ] || exit 2

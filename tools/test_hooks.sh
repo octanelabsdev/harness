@@ -207,5 +207,18 @@ run_stop "$R" false
 [ "$RC" = 0 ] && ok "review_gate + .verification-warn -> warn only (allow)" || no "review warn: expected 0, got $RC"
 rm -rf "$R"
 
+# ---- review_verify.sh direct (artifact freshness + citations) ----
+echo "review_verify:"
+verify() { (cd "$1" && bash "$VER" >/dev/null 2>&1); }   # verify <repo> -> exit code of the checker
+finding() { printf '{"file":"%s","line":%s,"severity":"improvement","summary":"s","failure_scenario":"f"}' "$1" "$2"; }
+
+# A large diff: grep -q matching early used to SIGPIPE the producer under pipefail and reject a valid citation.
+setup_review_repo; seq 1 20000 | sed 's/^/n = /' > "$R/lib/big.rb"
+SHA="$(cd "$R" && bash "$VER" --emit-sha)"
+write_art "$R" "{\"diff_sha\":\"$SHA\",\"verdict\":\"pass\",\"findings\":[$(finding lib/big.rb 2)]}"
+verify "$R"; rc=$?
+[ "$rc" = 0 ] && ok "large diff: early changed-line citation validates (no SIGPIPE false reject)" || no "large diff: expected 0, got $rc"
+rm -rf "$R"
+
 echo
 if [ "$fail" = 0 ]; then echo "OK: hook tests passed ($pass)."; exit 0; else echo "FAIL: $fail hook test(s), $pass passed." >&2; exit 1; fi
