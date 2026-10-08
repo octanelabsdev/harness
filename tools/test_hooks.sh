@@ -209,7 +209,7 @@ rm -rf "$R"
 
 # ---- review_verify.sh direct (artifact freshness + citations) ----
 echo "review_verify:"
-verify() { (cd "$1" && bash "$VER" >/dev/null 2>&1); }   # verify <repo> -> exit code of the checker
+verify() { VOUT="$(cd "$1" && bash "$VER" 2>&1)"; }   # verify <repo> -> exit code; VOUT = its message
 finding() { printf '{"file":"%s","line":%s,"severity":"improvement","summary":"s","failure_scenario":"f"}' "$1" "$2"; }
 
 # A large diff: grep -q matching early used to SIGPIPE the producer under pipefail and reject a valid citation.
@@ -218,6 +218,69 @@ SHA="$(cd "$R" && bash "$VER" --emit-sha)"
 write_art "$R" "{\"diff_sha\":\"$SHA\",\"verdict\":\"pass\",\"findings\":[$(finding lib/big.rb 2)]}"
 verify "$R"; rc=$?
 [ "$rc" = 0 ] && ok "large diff: early changed-line citation validates (no SIGPIPE false reject)" || no "large diff: expected 0, got $rc"
+rm -rf "$R"
+
+# Committed-work repo: base has lib/old.rb; the reviewed change edits it, stages one new file, leaves one untracked.
+setup_committed_repo() { # sets R, SHA, BASE (review stamped with base, nothing committed yet)
+  R="$(mkrepo "$RVBASE")"; mkdir -p "$R/.claude/.review"
+  seq 1 10 | sed 's/^/v = /' > "$R/lib/old.rb"
+  git -C "$R" add -A; git -C "$R" commit -qm base
+  sed -i.bak 's/^v = 9$/v = 90/' "$R/lib/old.rb"; rm -f "$R/lib/old.rb.bak"
+  printf 'z = 1\n' > "$R/lib/zeta.rb"; git -C "$R" add lib/zeta.rb
+  printf 'x = 1\n' > "$R/lib/alpha.rb"
+  SHA="$(cd "$R" && bash "$VER" --emit-sha)"; BASE="$(cd "$R" && bash "$VER" --emit-base)"
+  write_art "$R" "{\"base\":\"$BASE\",\"diff_sha\":\"$SHA\",\"verdict\":\"pass\",\"findings\":[$(finding lib/old.rb 9),$(finding lib/alpha.rb 1),$(finding lib/zeta.rb 1)]}"
+}
+commit_reviewed_work() { # two commits, so the reviewed diff spans a range
+  git -C "$1" add lib/alpha.rb; git -C "$1" commit -qm one
+  git -C "$1" add -A; git -C "$1" commit -qm two
+}
+
+setup_committed_repo
+verify "$R"; rc=$?
+[ "$rc" = 0 ] && ok "base-stamped review, uncommitted -> fresh" || no "base uncommitted: expected 0, got $rc"
+commit_reviewed_work "$R"
+verify "$R"; rc=$?
+[ "$rc" = 0 ] && ok "base-stamped review, work committed in 2 commits -> fresh, findings still cite changed lines" || no "base committed: expected 0, got $rc"
+printf 'y = 2\n' >> "$R/lib/alpha.rb"
+verify "$R"; rc=$?
+[ "$rc" = 2 ] && ok "committed review + uncommitted edit after -> stale" || no "base + uncommitted edit: expected 2, got $rc"
+git -C "$R" commit -qam three
+verify "$R"; rc=$?
+[ "$rc" = 2 ] && ok "committed review + committed edit after -> stale" || no "base + committed edit: expected 2, got $rc"
+rm -rf "$R"
+
+# After the commit, a finding must still cite a changed hunk relative to base (line 1 is outside it).
+setup_committed_repo
+write_art "$R" "{\"base\":\"$BASE\",\"diff_sha\":\"$SHA\",\"verdict\":\"pass\",\"findings\":[$(finding lib/old.rb 1)]}"
+commit_reviewed_work "$R"
+verify "$R"; rc=$?
+[ "$rc" = 2 ] && [[ "$VOUT" == *"lib/old.rb:1, which is not a changed line"* ]] \
+  && ok "committed review: finding citing an unchanged line still rejected" || no "base antifake: expected 2 + citation error, got $rc: $VOUT"
+rm -rf "$R"
+
+# A symbolic base moves with the branch, so it cannot pin a review: treated as legacy, stale once committed.
+setup_committed_repo
+write_art "$R" "{\"base\":\"HEAD\",\"diff_sha\":\"$SHA\",\"verdict\":\"pass\",\"findings\":[]}"
+commit_reviewed_work "$R"
+verify "$R"; rc=$?
+[ "$rc" = 2 ] && [[ "$VOUT" == *stale* ]] && ok "symbolic base (HEAD) -> legacy check, stale after commit" || no "symbolic base: expected stale, got $rc: $VOUT"
+rm -rf "$R"
+
+# A base that is not a commit in this repo is invalid, never silently accepted.
+setup_committed_repo
+write_art "$R" "{\"base\":\"0000000000000000000000000000000000000000\",\"diff_sha\":\"$SHA\",\"verdict\":\"pass\",\"findings\":[]}"
+verify "$R"; rc=$?
+[ "$rc" = 2 ] && ok "unknown base commit -> rejected" || no "unknown base: expected 2, got $rc"
+rm -rf "$R"
+
+# Legacy artifact (no base): fresh while uncommitted, stale once committed — unchanged behavior.
+setup_review_repo; write_art "$R" "{\"diff_sha\":\"$SHA\",\"verdict\":\"pass\",\"findings\":[$(finding lib/foo.rb 1)]}"
+verify "$R"; rc=$?
+[ "$rc" = 0 ] && ok "legacy artifact (no base), uncommitted -> fresh" || no "legacy uncommitted: expected 0, got $rc"
+git -C "$R" add -A; git -C "$R" commit -qm work
+verify "$R"; rc=$?
+[ "$rc" = 2 ] && ok "legacy artifact (no base), committed -> stale as before" || no "legacy committed: expected 2, got $rc"
 rm -rf "$R"
 
 echo

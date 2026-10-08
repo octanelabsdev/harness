@@ -50,7 +50,14 @@ requires a **verified blind-review artifact** for the current diff: the `blind-r
 `.claude/.review/current.json`, and `tools/review_verify.sh` refuses it unless its `diff_sha` matches
 the current tree and every finding cites a `file:line` actually in the diff (so a hand-written green
 result can't satisfy it). `verdict: changes-requested` or a missing/stale artifact **blocks**;
-`.claude/.verification-warn` downgrades it. This replaces the old `.claude/.last-review` check, which
+`.claude/.verification-warn` downgrades it.
+
+The artifact also records `base`, the full sha of `HEAD` at review time. With it, the checker renders
+the current tree against `base` rather than against the uncommitted diff, so committing the reviewed
+work (in one commit or several) keeps the artifact fresh, while any edit after the review, committed
+or not, makes it stale. Findings are checked against the same base-relative diff, so they still
+validate after the commit. An artifact without a full-sha `base` is checked the old way: it is fresh
+only while the reviewed changes are uncommitted. This replaces the old `.claude/.last-review` check, which
 compared a model-written marker to HEAD and couldn't tell a real review from a claimed one.
 
 ### Pipeline gate (`pipeline_gate`) — PreToolUse hook
