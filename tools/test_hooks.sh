@@ -42,12 +42,12 @@ R="$(mkrepo "$PCFG")"
 
 # warn (no story, no .pipeline-block): the safety property — must NOT auto-approve, must NOT deny.
 out="$(run_pre "$R" "$R/lib/foo.rb")"
-if printf '%s' "$out" | grep -q '"permissionDecision"'; then
+if grep -q '"permissionDecision"' <<< "$out"; then
   no "warn: emitted a permissionDecision (must fall through to normal permission flow)"
 else
   ok "warn: no permissionDecision — no auto-approve"
 fi
-printf '%s' "$out" | grep -q '"additionalContext"' && ok "warn: surfaces advisory via additionalContext" || no "warn: expected an additionalContext advisory"
+grep -q '"additionalContext"' <<< "$out" && ok "warn: surfaces advisory via additionalContext" || no "warn: expected an additionalContext advisory"
 
 # block mode (.pipeline-block present) -> deny
 touch "$R/.claude/.pipeline-block"
@@ -96,8 +96,8 @@ acceptance_criteria:
 out_of_scope: []
 YAML
 out="$(run_pre "$R" "$R/lib/foo.rb")"
-if printf '%s' "$out" | grep -q '"permissionDecision"'; then no "NOT-READY story: emitted a decision (must not auto-approve)"; else ok "NOT-READY story: no permissionDecision (warn)"; fi
-printf '%s' "$out" | grep -q '"additionalContext"' && ok "NOT-READY story: surfaces the lint verdict via additionalContext" || no "NOT-READY story: expected additionalContext"
+if grep -q '"permissionDecision"' <<< "$out"; then no "NOT-READY story: emitted a decision (must not auto-approve)"; else ok "NOT-READY story: no permissionDecision (warn)"; fi
+grep -q '"additionalContext"' <<< "$out" && ok "NOT-READY story: surfaces the lint verdict via additionalContext" || no "NOT-READY story: expected additionalContext"
 # NOT-READY story + block mode -> deny
 touch "$R/.claude/.pipeline-block"
 out="$(run_pre "$R" "$R/lib/foo.rb")"
@@ -107,8 +107,8 @@ rm -f "$R/.claude/.pipeline-block" "$R/.claude/current-story.yaml"
 # small-fix bypass -> advise, still no decision (no auto-approve)
 printf 'quick typo\n' > "$R/.claude/.small-fix"
 out="$(run_pre "$R" "$R/lib/foo.rb")"
-if printf '%s' "$out" | grep -q '"permissionDecision"'; then no "small-fix: emitted a decision (must not auto-approve)"; else ok "small-fix: no permissionDecision"; fi
-printf '%s' "$out" | grep -q '"additionalContext"' && ok "small-fix: surfaces the bypass notice" || no "small-fix: expected an additionalContext notice"
+if grep -q '"permissionDecision"' <<< "$out"; then no "small-fix: emitted a decision (must not auto-approve)"; else ok "small-fix: no permissionDecision"; fi
+grep -q '"additionalContext"' <<< "$out" && ok "small-fix: surfaces the bypass notice" || no "small-fix: expected an additionalContext notice"
 rm -f "$R/.claude/.small-fix"
 
 # non-implementation path -> not gated (silent)

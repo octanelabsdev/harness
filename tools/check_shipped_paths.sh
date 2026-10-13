@@ -25,7 +25,7 @@ while IFS= read -r f; do
   [ "$f" = "$self" ] && continue          # the checker defines the patterns; don't scan it
   case "$f" in *.png|*.jpg|*.jpeg|*.gif|*.ico|*.pdf) continue;; esac
   while IFS= read -r line; do
-    printf '%s' "$line" | grep -Eq "$allow" && continue
+    grep -Eq "$allow" <<< "$line" && continue
     echo "  $f:$line"
     hits=$((hits + 1))
   done < <(grep -nE "$pat" "$f" 2>/dev/null)

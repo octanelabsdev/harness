@@ -30,7 +30,7 @@ fi
 
 # 2. tool scripts exist (+ executable for *.sh)
 echo "tools:"
-for t in tools/review_verify.sh tools/run_tests.sh tools/dor_lint.rb tools/ci.sh tools/test_hooks.sh tools/tome.sh \
+for t in tools/review_verify.sh tools/run_tests.sh tools/cycle.sh tools/cycle_approve.sh tools/dor_lint.rb tools/ci.sh tools/test_hooks.sh tools/tome.sh \
          tools/check_shipped_paths.sh tools/smoke_load.sh tools/harness_status.sh tools/harness_doctor.sh \
          tools/harness_update.sh; do
   if [ -f "$PLUGIN/$t" ]; then
@@ -45,6 +45,7 @@ done
 
 # 3. review-gate assets (needed only if enabled anywhere; check presence regardless)
 [ -f "$PLUGIN/skills/blind-review/SKILL.md" ] && ok "blind-review skill present" || bad "blind-review skill MISSING"
+[ -f "$PLUGIN/skills/cycle/SKILL.md" ] && ok "cycle skill present" || bad "cycle skill MISSING"
 [ -f "$PLUGIN/tools/review-findings.schema.json" ] && ok "review-findings schema present" || bad "review-findings schema MISSING"
 
 # 4. this project's config

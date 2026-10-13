@@ -14,8 +14,9 @@ stronger in combination.
    reality:
    - **SessionStart banner** — prints environment-verified state (config home's global ruleset,
      harness config + stack, and your BYO agent count).
-   - **Stop verification gate** — when a turn ends with implementation code changed, warns if a
-     UI/impl change lacks an operator-journey test or if no review was recorded.
+   - **Stop verification gate** — when a turn ends with implementation code changed, runs the test
+     command and blocks on a red (or unanswered) result; advises when a UI change lacks an
+     operator-journey test; optionally requires a verified blind review.
    - **PreToolUse pipeline gate** — before an edit to the implementation surface, requires a
      Definition-of-Ready story (or an explicit small-fix escape hatch).
 

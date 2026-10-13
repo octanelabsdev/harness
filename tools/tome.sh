@@ -60,7 +60,7 @@ _strip() { sed 's/<[^>]*>/ /g' | tr -s ' \t' ' ' | grep -vE '^ *$'; }
 # (Apple Books stores them unpacked). iCloud stubs have 0 blocks and fail both.
 _readable() {
   if [ -d "$1" ]; then
-    [ -f "$1/mimetype" ] || find "$1" \( -iname '*.xhtml' -o -iname '*.html' \) 2>/dev/null | grep -q .
+    [ -f "$1/mimetype" ] || [ -n "$(find "$1" \( -iname '*.xhtml' -o -iname '*.html' \) -print -quit 2>/dev/null)" ]
   else
     [ "$(stat -f '%b' "$1" 2>/dev/null || echo 0)" -gt 0 ] && unzip -l "$1" >/dev/null 2>&1
   fi

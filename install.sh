@@ -80,7 +80,7 @@ fi
 # Auto-resolve it for a version tag (vN.N.N); leave a branch/channel ref (main, stable, …) at ref-only so
 # it can still move. An explicit --sha always wins; --no-sha opts out. Offline -> ref only (never hard-fail).
 if [ "$DO_PLUGIN" = 1 ] && [ -n "$PIN_REF" ] && [ -z "$PIN_SHA" ] && [ "$DO_SHA" = 1 ] \
-   && printf '%s' "$PIN_REF" | grep -qE '^v[0-9]'; then
+   && grep -qE '^v[0-9]' <<< "$PIN_REF"; then
   PIN_SHA="$(git ls-remote "https://github.com/$MKT_REPO" "$PIN_REF" "$PIN_REF^{}" 2>/dev/null \
     | awk '$2 ~ /\^\{\}$/ {peeled=$1} $2 !~ /\^\{\}$/ {plain=$1} END {print (peeled != "" ? peeled : plain)}')"
   [ -n "$PIN_SHA" ] || echo "  note: could not resolve a commit sha for $PIN_REF (offline, or tag not pushed yet) — pinning ref only" >&2
@@ -191,7 +191,7 @@ with open(p, "w") as f:
     json.dump(s, f, indent=2); f.write("\n")
 print("  wrote .mcp.json ground-truth server(s):", ", ".join(mcp.keys()))
 PY
-  if printf '%s' "$mcp" | grep -q 'rails-mcp-server' && [ -f "$TARGET/Gemfile" ] && ! grep -q 'rails-mcp-server' "$TARGET/Gemfile"; then
+  if grep -q 'rails-mcp-server' <<< "$mcp" && [ -f "$TARGET/Gemfile" ] && ! grep -q 'rails-mcp-server' "$TARGET/Gemfile"; then
     echo "  NOTE: add the gem so 'bundle exec rails-mcp-server' resolves — in your Gemfile:  gem \"rails-mcp-server\", group: :development"
   fi
 elif [ -n "$mcp" ]; then

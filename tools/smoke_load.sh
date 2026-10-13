@@ -73,18 +73,18 @@ export CLAUDE_CONFIG_DIR="$SMOKE"
 "$CLAUDE_BIN" plugin marketplace add "$REPO" >/dev/null 2>&1 || bad "marketplace add failed"
 "$CLAUDE_BIN" plugin install harness@harness >/dev/null 2>&1 || bad "plugin install failed"
 det="$("$CLAUDE_BIN" plugin details harness 2>&1)"
-if printf '%s' "$det" | grep -qiE "error|failed|not found|duplicate"; then
-  bad "plugin details reported a problem:"; printf '%s\n' "$det" | grep -iE "error|failed|not found|duplicate" | sed 's/^/      /' >&2
+if grep -qiE "error|failed|not found|duplicate" <<< "$det"; then
+  bad "plugin details reported a problem:"; grep -iE "error|failed|not found|duplicate" <<< "$det" | sed 's/^/      /' >&2
 else
   ok "installed and loaded clean"
 fi
 # Hooks are counted per EVENT (SessionStart, Stop, PreToolUse), not per script —
 # adding a script under an existing event does not change this number.
-printf '%s' "$det" | grep -q "Hooks (3)"  && ok "3 hook events present"  || bad "expected 3 hook events in inventory"
-# 10 invocable items: 5 skills (blind-review, bookshelf, guardrails, product-manager, story-writer) + 5 commands (init, agents, status, doctor, update).
-printf '%s' "$det" | grep -q "Skills (10)" && ok "10 skills + commands present" || bad "expected 10 skills+commands in inventory"
+grep -q "Hooks (3)" <<< "$det"  && ok "3 hook events present"  || bad "expected 3 hook events in inventory"
+# 11 invocable items: 6 skills (blind-review, bookshelf, cycle, guardrails, product-manager, story-writer) + 5 commands (init, agents, status, doctor, update).
+grep -q "Skills (11)" <<< "$det" && ok "11 skills + commands present" || bad "expected 11 skills+commands in inventory"
 for cmd in init agents status doctor update; do
-  printf '%s' "$det" | grep -qw "$cmd" && ok "/harness:$cmd command loaded" || bad "expected $cmd command in inventory"
+  grep -qw "$cmd" <<< "$det" && ok "/harness:$cmd command loaded" || bad "expected $cmd command in inventory"
 done
 
 if [ "$fail" = 0 ]; then echo "OK: plugin installs and loads clean."; else echo "FAIL: load smoke." >&2; fi

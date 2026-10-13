@@ -13,7 +13,13 @@ enforcing gates stay inert.
     "skill_nudge":       true,   // SessionStart nudge to invoke skills (default on)
     "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
     "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
-    "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
+    "review_gate":       false,  // Stop gate — require a verified blind-review artifact (opt-in, default off)
+    "cycle_guard":       true    // PreToolUse — deny agent writes to a cycle phase's approval (default on)
+  },
+  "cycles": {                                   // optional: see Cycles
+    "dir":    "../acme-meta/cycles",            //   where cycles live (default .claude/cycles)
+    "mirror": "~/notes/acme/cycles",            //   one-way copy to your notes vault
+    "deny":   ["AcmeCorp"]                      //   strings removed from client reports
   },
   "stack": {
     "name": "rails",                            // label, shown in the banner
@@ -22,6 +28,8 @@ enforcing gates stay inert.
     "test_dir":   "test",                       // where unit/integration tests live
     "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
     "test_command": "bin/rails test",           // how to run the suite ("" = unknown)
+    "test_timeout_sec": 600,                    // optional: kill the suite after this long (default 600)
+    "test_lock_wait_sec": 600,                  // optional: wait this long for another run's lock (default 600)
     "agents_bundle": {                          // optional: default agent bundle for /harness:agents
       "repo": "octanelabsdev/rails-agents",     //   owner/name slug or git URL
       "glob": ["rails-*.md", "dhh-code-reviewer.md"] // which files in the bundle are agents
@@ -39,7 +47,14 @@ enforcing gates stay inert.
   operator-test check.
 - **`test_command`** — the canonical check the verification gate **runs** on a Stop with impl changes;
   a non-zero exit blocks (see [components.md](components.md)). If empty, the gate only runs its
-  advisory operator-test check.
+  advisory operator-test check. It runs through `tools/run_tests.sh`, which serializes runs across
+  sessions and worktrees (see [Test runs](components.md#test-runs-one-at-a-time)).
+- **`test_timeout_sec`** (default `600`) — the suite is killed, and the Stop **blocks as UNVERIFIED**,
+  if it runs longer than this. Set it above your suite's real wall time with headroom (a `bin/ci` that
+  takes ~650s wants `900`). Capped to the Stop hook's timeout (1800s) minus 60s, i.e. 1740.
+- **`test_lock_wait_sec`** (default `600`) — how long to wait while another session's suite holds the
+  test lock. Past it the Stop **blocks as UNVERIFIED** without running. Wait plus run must fit inside
+  1740s; the wait is shortened first.
 - **`components`** — the toggleable hooks honor these. `session_banner` and `skill_nudge` default to
   **on** unless set to `false`; the gates (`verification_gate`, `pipeline_gate`, `review_gate`) default
   **off** when unconfigured. When on, the pipeline gate runs in **warn** mode, and the verification gate
@@ -48,6 +63,14 @@ enforcing gates stay inert.
   artifact** for the current diff — produced by the `blind-review` skill, checked by
   `tools/review_verify.sh`; same `.claude/.verification-warn` downgrade. (The `harness_bootstrap` hook
   has no toggle — it only acts when there's no config yet; see [components.md](components.md).)
+- **`cycles`** (optional) — where [cycles](cycles.md) live and are mirrored, and what client reports
+  redact. `dir` must be outside the code repo (a sibling meta repo) or under `.claude/`; `mirror` must be
+  outside the code repo; `deny` is a list of strings.
+- **`cycle_guard`** — on by default whenever a config exists. It denies the common ways an agent would
+  run the approval tool or write, move or delete a phase's `approval.json` (redirects, `cp`/`mv`/`tee`,
+  `sed -i`/`perl -i`, `rm`). It reads command text, so it can't catch every form; the real check is
+  `cycle.sh`, which only counts an approval matching what was approved. Set it to `false` if it gets in
+  the way.
 - **`agents_bundle`** (optional) — the default agent bundle `/harness:agents` pulls when given no
   repo. `repo` is an `owner/name` slug or git URL; `glob` lists which files in the bundle are agents.
 

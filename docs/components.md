@@ -45,6 +45,42 @@ A `test_command` failure **blocks by default**. Rolling out gradually? `touch .c
 to downgrade to warn-only (the failure is surfaced but doesn't block). A Stop hook's `exit 2` prevents
 the stop and continues so Claude addresses the gap.
 
+#### Test runs: one at a time
+Two sessions (or two worktrees of one repo) ending a turn together would otherwise run the suite at
+the same moment against the same test database and fail each other at random. The gate runs
+`test_command` through **`tools/run_tests.sh`**, which takes a repo-wide lock first:
+
+- **The lock** is a directory in the git common dir (`.git/harness-test.lock`), so every worktree
+  shares it. A second run **waits** for the first instead of running alongside it.
+- **Crashed runs don't wedge it.** A lock is cleared when its owner process is gone (same host), when no owner was
+  recorded within 10s, or when it has outlived the owner's own timeout plus 120s.
+- **Timeouts kill the whole suite**, including the processes it spawned, after `stack.test_timeout_sec`.
+- **Output** goes to `.git/harness-test-run.log` (the gate shows its tail) so a daemon the suite
+  left behind can't hold the gate open.
+- **It always runs.** No result is cached or reused; a pass always comes from a real run.
+
+The Stop hook's own timeout is 1800s. A hook that Claude Code kills renders no decision, which would
+let the turn end silently, so the gate fits the lock wait and the run inside it. Every way the tests
+can fail to give an answer **blocks** (subject to `.verification-warn`) with a distinct verdict:
+
+| Verdict | Meaning |
+|---|---|
+| `test_command failed` | The suite ran and was red. |
+| `UNVERIFIED — another test run held the lock …` | Another run held the lock past `test_lock_wait_sec`; the tests did **not** run. |
+| `UNVERIFIED — test_command exceeded …` | The suite ran past `test_timeout_sec` and was killed. |
+| `SETUP ERROR — tests did NOT run …` | Bad timeout/wait values, or the lock can't be created (e.g. read-only `.git`). |
+
+**Running the suite by hand?** Take the same lock, so your run and a session's gate queue instead of
+colliding:
+```sh
+# the newest installed harness (CLAUDE_PLUGIN_ROOT is only set for hooks, not your shell)
+H=$(ls -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/harness/harness/*/ | sort -V | tail -1)
+bash "${H%/}/tools/run_tests.sh" -- bin/ci
+bash "${H%/}/tools/run_tests.sh" --timeout 900 --wait 300 -- bin/rails test
+```
+Run it from inside the repo. Exit codes: `0` green, `1` red, `2` usage/setup error, `3` busy (not
+run), `4` timed out. From a terminal, output streams live instead of going to the log.
+
 **Review layer (`components.review_gate`, opt-in, default off).** When on, the same Stop hook also
 requires a **verified blind-review artifact** for the current diff: the `blind-review` skill writes
 `.claude/.review/current.json`, and `tools/review_verify.sh` refuses it unless its `diff_sha` matches

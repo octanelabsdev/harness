@@ -57,6 +57,24 @@ The harness ships **zero agents**. Bring your own — or use an example bundle l
 
     [Read →](concepts.md)
 
+-   **Working with the harness**
+
+    The day-to-day loop, from picking work to shipping it.
+
+    [Read →](workflow.md)
+
+-   **Examples**
+
+    Real gate output for everyday situations, and a client cycle walkthrough.
+
+    [Read →](examples.md)
+
+-   **Cycles** (not yet released)
+
+    Multi-phase work with evidence and a human gate per phase.
+
+    [Read →](cycles.md)
+
 -   **Components**
 
     The hooks and skills in detail; warn → block.

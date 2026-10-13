@@ -52,8 +52,28 @@ Re-link them (see [agents.md](agents.md)).
 
 ## I want the gates to actually block, not warn
 - Pipeline gate: `touch .claude/.pipeline-block`.
-- Verification gate: edit `hooks/verification_gate.sh` per the note at its tail (swap `exit 0` for
-  `exit 2` when warnings exist). Promote only after the warn phase is quiet on false positives.
+- Verification gate: it already blocks on a red `test_command` unless `.claude/.verification-warn`
+  exists. Delete that file to block.
+
+## The Stop gate says `UNVERIFIED` or `SETUP ERROR`
+The tests did not give an answer, so the gate refuses to let the turn end as if they had. See the
+verdict table in [components.md](components.md#test-runs-one-at-a-time).
+- **`… held the lock past …`** — another session or worktree (or a hand-run) was mid-suite. Wait and
+  end the turn again, or raise `stack.test_lock_wait_sec`. To see who holds it:
+  `cat "$(git rev-parse --git-common-dir)/harness-test.lock/owner"` (pid, start time, timeout, host).
+- **`… exceeded …s and was killed`** — the suite is slower than `stack.test_timeout_sec`. Time it once
+  and set the value above it with headroom (max 1740).
+- **`SETUP ERROR`** — a non-integer or zero timeout/wait in `.claude/harness.json`, or `.git` isn't
+  writable (read-only mount, sandbox). The details follow the verdict.
+
+The full output of the last gated run is in `$(git rev-parse --git-dir)/harness-test-run.log`.
+
+## Tests fail at random when two sessions are open
+The suites were running at the same time against one test database. The gate now serializes its own
+runs, but a suite you start by hand bypasses the lock unless you run it through
+`tools/run_tests.sh` (see [components.md](components.md#test-runs-one-at-a-time)). If your app has its
+own guard against concurrent runs, it may refuse the gate's run while yours is going, and that shows
+up as `test_command failed`.
 
 ## The `rails` MCP server won't connect (`-32602 Unsupported protocol version`)
 On a **legacy Rails app** the installer's in-bundle MCP setup pins a dead version of the server. The

@@ -6,8 +6,9 @@
 # current tree and refuses a review that doesn't engage with the real changed lines.
 #
 # Modes:
-#   review_verify.sh --emit-sha          print sha256 of the reviewed diff (the tree vs HEAD). The review
-#                                        stamps it into the artifact as diff_sha.
+#   review_verify.sh --emit-sha [<base>] print sha256 of the reviewed diff (the tree vs HEAD, or vs <base>,
+#                                        e.g. the commit a cycle phase started from). The review stamps it
+#                                        into the artifact as diff_sha.
 #   review_verify.sh --emit-base         print the full sha of HEAD. The review stamps it as base.
 #   review_verify.sh [artifact-path]     verify the artifact (default .claude/.review/current.json):
 #     exit 0 = valid artifact AND verdict:pass                              -> allow the stop
@@ -53,7 +54,9 @@ sha_cmd()  { if command -v shasum >/dev/null 2>&1; then shasum -a 256; else sha2
 diff_sha() { reviewed_diff | sha_cmd | awk '{print $1}'; }
 
 case "${1:-}" in
-  --emit-sha)  BASE="$(git rev-parse --verify HEAD)" || exit 2; diff_sha; exit 0 ;;
+  --emit-sha)
+    BASE="$(git rev-parse --verify "${2:-HEAD}^{commit}" 2>/dev/null)" || { echo "review: not a commit: ${2:-HEAD}" >&2; exit 2; }
+    diff_sha; exit 0 ;;
   --emit-base) git rev-parse --verify HEAD; exit $? ;;
 esac
 
