@@ -157,6 +157,189 @@ run_stop "$R" true
 [ "$RC" = 0 ] && ok "loop guard: stop_hook_active=true never re-blocks" || no "loop guard: expected exit 0, got $RC"
 rm -rf "$R"
 
+# ---- verification_gate test runs: lock, timeout, budget (tools/run_tests.sh) ----
+echo "verification_gate (test runs):"
+# vcfg <test_command> [extra stack json] -> harness.json body (jq-built, so commands may contain quotes)
+vcfg() {
+  local extra="${2:-}"; [ -n "$extra" ] || extra='{}'   # not "${2:-{}}": bash 3.2 expands that to a stray brace
+  jq -cn --arg c "$1" --argjson x "$extra" '{components:{verification_gate:true},stack:({impl_dirs:["lib"],test_command:$c} + $x)}'
+}
+committed_repo() { R="$(mkrepo "$1")"; git -C "$R" commit -q --allow-empty -m base; : > "$R/lib/foo.rb"; }
+O="$(mktemp -d "${TMPDIR:-/tmp}/harness-hookout.XXXXXX")"   # side-channel files live OUTSIDE the repo
+runs() { wc -l < "$O/runs" | tr -d ' '; }
+
+# Two sessions stopping at once on a shared test DB: the second waits instead of colliding.
+shared="echo run >> $O/runs; mkdir $O/db 2>/dev/null || { echo COLLISION; exit 1; }; sleep 2; rmdir $O/db"
+committed_repo "$(vcfg "$shared")"; : > "$O/runs"
+( run_stop "$R" false; echo "$RC" > "$O/rc.a" ) & ( run_stop "$R" false; echo "$RC" > "$O/rc.b" ) & wait
+[ "$(cat "$O/rc.a")" = 0 ] && [ "$(cat "$O/rc.b")" = 0 ] && [ "$(runs)" = 2 ] \
+  && ok "concurrent stops on a shared test DB -> serialized, neither collides" \
+  || no "concurrent stops: expected 0/0 with the suite run, got $(cat "$O/rc.a")/$(cat "$O/rc.b"), $(runs) runs"
+rm -rf "$R"
+
+# A pass always comes from a real run: an unchanged tree re-runs on every stop, nothing is reused.
+committed_repo "$(vcfg "echo run >> $O/runs")"; : > "$O/runs"
+run_stop "$R" false; run_stop "$R" false
+[ "$RC" = 0 ] && [ "$(runs)" = 2 ] && ok "unchanged tree, two stops -> suite runs both times (no reuse)" || no "no reuse: expected 2 runs + exit 0, got $(runs), rc $RC"
+rm -rf "$R"
+
+# A lock left by a dead run is cleared, not waited on. (Started now, so only the dead pid can make it stale.)
+committed_repo "$(vcfg "echo run >> $O/runs")"; : > "$O/runs"; mkdir "$R/.git/harness-test.lock"
+bash -c 'exit 0' & dead=$!; wait "$dead"
+printf '%s %s 600\n' "$dead" "$(date +%s)" > "$R/.git/harness-test.lock/owner"
+run_stop "$R" false
+[ "$RC" = 0 ] && [ "$(runs)" = 1 ] && ok "stale lock from a dead run -> cleared, suite runs" || no "stale lock: expected 0 + 1 run, got $RC, $(runs)"
+rm -rf "$R"
+
+# A live pid that has held the lock past its own limits is a dead run's pid reused by another process.
+# Wait cap 5s < the holder's 30s life, so only recognising it as stale (not outwaiting it) can pass.
+committed_repo "$(vcfg "echo run >> $O/runs" '{"test_lock_wait_sec":5}')"; : > "$O/runs"
+sleep 30 & reused=$!
+mkdir "$R/.git/harness-test.lock"; printf '%s 0 600\n' "$reused" > "$R/.git/harness-test.lock/owner"
+run_stop "$R" false
+[ "$RC" = 0 ] && [ "$(runs)" = 1 ] && ok "lock past its owner's limits (reused pid) -> cleared, suite runs" || no "pid reuse: expected 0 + 1 run, got $RC, $(runs)"
+kill "$reused" 2>/dev/null; wait "$reused" 2>/dev/null
+rm -rf "$R"
+
+# A live holder past the wait cap -> UNVERIFIED block (tests did not run), never a silent pass.
+committed_repo "$(vcfg "echo run >> $O/runs" '{"test_lock_wait_sec":1}')"; : > "$O/runs"
+sleep 30 & holder=$!
+mkdir "$R/.git/harness-test.lock"; printf '%s %s 600\n' "$holder" "$(date +%s)" > "$R/.git/harness-test.lock/owner"
+run_stop "$R" false
+[ "$RC" = 2 ] && [ "$(runs)" = 0 ] && [[ "$OUT" == *UNVERIFIED*lock* ]] \
+  && ok "lock held past test_lock_wait_sec -> blocks as UNVERIFIED, suite not run" || no "busy: expected exit 2 + UNVERIFIED + 0 runs, got $RC, $(runs) runs: $OUT"
+[ -d "$R/.git/harness-test.lock" ] && ok "busy: another session's lock is left in place" || no "busy: removed a lock it did not own"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
+rm -rf "$R"
+
+# A suite past test_timeout_sec is killed and blocks as UNVERIFIED, before Claude Code's hook timeout can.
+committed_repo "$(vcfg "sleep 20" '{"test_timeout_sec":1}')"
+t0="$(date +%s)"; run_stop "$R" false; took_sec=$(( $(date +%s) - t0 ))
+[ "$RC" = 2 ] && [[ "$OUT" == *UNVERIFIED*exceeded* ]] && [ "$took_sec" -lt 10 ] \
+  && ok "suite past test_timeout_sec -> killed in ${took_sec}s, blocks as UNVERIFIED" || no "timeout: expected exit 2 + UNVERIFIED in <10s, got $RC in ${took_sec}s: $OUT"
+[ ! -d "$R/.git/harness-test.lock" ] && ok "timeout: lock released" || no "timeout: lock left behind"
+rm -rf "$R"
+
+# Two waiters on the same dead lock still run one at a time. (This does not isolate the reap mutex: the
+# owner re-read alone closes all but a microsecond window, so a mutex regression would not turn it red.)
+committed_repo "$(vcfg "$shared")"; : > "$O/runs"
+bash -c 'exit 0' & dead=$!; wait "$dead"
+mkdir "$R/.git/harness-test.lock"; printf '%s 0\n' "$dead" > "$R/.git/harness-test.lock/owner"
+( run_stop "$R" false; echo "$RC" > "$O/rc.a" ) & ( run_stop "$R" false; echo "$RC" > "$O/rc.b" ) & wait
+[ "$(cat "$O/rc.a")" = 0 ] && [ "$(cat "$O/rc.b")" = 0 ] \
+  && ok "two stops on one stale lock -> still serialized, no collision" \
+  || no "stale-lock race: expected 0/0, got $(cat "$O/rc.a")/$(cat "$O/rc.b")"
+rm -rf "$R"
+
+# Settings that would outlast the hook's own timeout are capped: the lock wait gives way first.
+committed_repo "$(vcfg "echo run >> $O/runs" '{"test_timeout_sec":1740,"test_lock_wait_sec":600}')"; : > "$O/runs"
+sleep 30 & holder=$!
+mkdir "$R/.git/harness-test.lock"; printf '%s 0\n' "$holder" > "$R/.git/harness-test.lock/owner"
+t0="$(date +%s)"; run_stop "$R" false; took_sec=$(( $(date +%s) - t0 ))
+[ "$RC" = 2 ] && [[ "$OUT" == *UNVERIFIED*lock* ]] && [ "$took_sec" -lt 10 ] \
+  && ok "timeout + wait over the hook budget -> wait capped (busy in ${took_sec}s, not 600s)" || no "budget cap: expected fast UNVERIFIED busy, got $RC in ${took_sec}s: $OUT"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
+rm -rf "$R"
+
+# run_stop with a 10s cap: a gate that never returns sets RC=hung instead of hanging the suite.
+run_stop_capped() {
+  ( run_stop "$1" false; echo "$RC" > "$O/rc.c"; printf '%s' "$OUT" > "$O/out.c" ) & local g=$!
+  for _ in $(seq 100); do kill -0 "$g" 2>/dev/null || break; sleep 0.1; done
+  if kill -0 "$g" 2>/dev/null; then pkill -P "$g" 2>/dev/null; kill "$g" 2>/dev/null; RC=hung; OUT=""
+  else wait "$g"; RC="$(cat "$O/rc.c")"; OUT="$(cat "$O/out.c")"; fi
+}
+
+# Permission-based setups mean nothing to root (a CI container), so those cases are skipped there.
+if [ "$(id -u)" = 0 ]; then
+  echo "  - skipped (running as root): unremovable stale lock, non-writable .git"
+else
+  # A stale lock this run can't remove (root-owned from a container or sudo run) ends as BUSY at the
+  # wait cap — never an endless spin that Claude Code would cancel into a silent pass.
+  committed_repo "$(vcfg "echo run >> $O/runs" '{"test_lock_wait_sec":2}')"; : > "$O/runs"
+  bash -c 'exit 0' & dead=$!; wait "$dead"
+  mkdir "$R/.git/harness-test.lock"; printf '%s 0 600\n' "$dead" > "$R/.git/harness-test.lock/owner"
+  chmod a-w "$R/.git/harness-test.lock"
+  run_stop_capped "$R"
+  [ "$RC" = 2 ] && [ "$(runs)" = 0 ] && [[ "$OUT" == *UNVERIFIED* ]] \
+    && ok "unremovable stale lock -> UNVERIFIED block at the wait cap, suite not run" \
+    || no "unremovable stale lock: expected exit 2 + UNVERIFIED + 0 runs, got $RC, $(runs): $OUT"
+  chmod u+w "$R/.git/harness-test.lock"
+  rm -rf "$R"
+
+  # A lock that can't even be created (.git not writable) is a setup error at once — not a wait, not a spin.
+  committed_repo "$(vcfg "echo run >> $O/runs" '{"test_lock_wait_sec":5}')"; : > "$O/runs"
+  chmod a-w "$R/.git"
+  t0="$(date +%s)"; run_stop_capped "$R"; took_sec=$(( $(date +%s) - t0 ))
+  chmod u+w "$R/.git"
+  [ "$RC" = 2 ] && [ "$(runs)" = 0 ] && [[ "$OUT" == *"SETUP ERROR"* ]] && [ "$took_sec" -lt 4 ] \
+    && ok "non-writable .git -> SETUP ERROR block in ${took_sec}s, suite not run" \
+    || no "non-writable .git: expected fast exit 2 + SETUP ERROR + 0 runs, got $RC in ${took_sec}s, $(runs): $OUT"
+  rm -rf "$R"
+fi
+
+# A lock written on another host or container: its pid means nothing here, so a "dead" pid doesn't make
+# it stale — only its own limits do.
+committed_repo "$(vcfg "echo run >> $O/runs" '{"test_lock_wait_sec":1}')"; : > "$O/runs"
+bash -c 'exit 0' & dead=$!; wait "$dead"
+mkdir "$R/.git/harness-test.lock"; printf '%s %s 600 some-other-host\n' "$dead" "$(date +%s)" > "$R/.git/harness-test.lock/owner"
+run_stop_capped "$R"
+[ "$RC" = 2 ] && [ "$(runs)" = 0 ] && [[ "$OUT" == *UNVERIFIED*lock* ]] \
+  && ok "lock from another host within its limits -> respected (busy), not reaped by pid" \
+  || no "foreign-host lock: expected exit 2 + UNVERIFIED + 0 runs, got $RC, $(runs): $OUT"
+rm -rf "$R"
+
+# Killing the runner (TERM) stops a suite that ignores TERM before the lock is released.
+R="$(mkrepo '{}')"; git -C "$R" commit -q --allow-empty -m base
+( cd "$R" && exec bash "$HERE/run_tests.sh" -- "trap '' TERM; sleep 4; touch $O/survived" ) </dev/null >/dev/null 2>&1 & runner=$!
+sleep 1; kill -TERM "$runner"
+for _ in $(seq 60); do kill -0 "$runner" 2>/dev/null || break; sleep 0.1; done
+lock_left=""; [ -d "$R/.git/harness-test.lock" ] && lock_left=1
+sleep 5   # past the suite's own 4s: a surviving suite would have created the file by now
+[ ! -f "$O/survived" ] && [ -z "$lock_left" ] && ok "runner killed -> TERM-ignoring suite killed too, lock released" \
+  || no "runner killed: suite survived=$([ -f "$O/survived" ] && echo yes || echo no), lock left=${lock_left:-no}"
+rm -rf "$R" "$O/survived"
+
+# A zero timeout is a config error, not a timeout on every run.
+committed_repo "$(vcfg "echo run >> $O/runs" '{"test_timeout_sec":0}')"; : > "$O/runs"
+run_stop "$R" false
+[ "$RC" = 2 ] && [ "$(runs)" = 0 ] && [[ "$OUT" == *"SETUP ERROR"* ]] && ok "test_timeout_sec: 0 -> SETUP ERROR, suite not run" || no "zero timeout: expected SETUP ERROR + 0 runs, got $RC, $(runs): $OUT"
+rm -rf "$R"
+
+# A non-numeric limit is a config error that blocks — never read as a test result.
+committed_repo "$(vcfg "echo run >> $O/runs" '{"test_timeout_sec":"10m"}')"; : > "$O/runs"
+run_stop "$R" false
+[ "$RC" = 2 ] && [ "$(runs)" = 0 ] && [[ "$OUT" == *"SETUP ERROR"* ]] && ok "non-integer test_timeout_sec -> SETUP ERROR block, suite not run" || no "config error: expected exit 2 + SETUP ERROR + 0 runs, got $RC, $(runs): $OUT"
+rm -rf "$R"
+
+# A daemon the suite detaches (own session) must not hold the gate past its timeout via an inherited pipe.
+# (Daemon lives 15s; the gate must return well before that, then the test kills the daemon.)
+committed_repo "$(vcfg "perl -MPOSIX -e 'fork and exit; POSIX::setsid(); open(F, \">$O/daemon.pid\"); print F \$\$; close F; sleep 15'; sleep 30" '{"test_timeout_sec":2}')"
+t0="$(date +%s)"; run_stop "$R" false; took_sec=$(( $(date +%s) - t0 ))
+[ "$RC" = 2 ] && [ "$took_sec" -lt 10 ] && ok "detached daemon in the suite -> gate still returns at the timeout (${took_sec}s)" \
+  || no "detached daemon: expected exit 2 in <10s, got $RC in ${took_sec}s"
+[ -f "$O/daemon.pid" ] && kill "$(cat "$O/daemon.pid")" 2>/dev/null; rm -f "$O/daemon.pid"
+rm -rf "$R"
+
+# A flag given without its value is a usage error, not an endless argument loop.
+R="$(mkrepo '{}')"
+( cd "$R" && bash "$HERE/run_tests.sh" --timeout ) >/dev/null 2>&1 & arg=$!
+for _ in $(seq 50); do kill -0 "$arg" 2>/dev/null || break; sleep 0.1; done
+if kill -0 "$arg" 2>/dev/null; then kill "$arg"; no "run_tests --timeout with no value hangs"
+else wait "$arg"; [ $? = 2 ] && ok "run_tests --timeout with no value -> usage error (exit 2)" || no "missing value: expected exit 2"; fi
+rm -rf "$R"
+
+# A zero-padded limit is decimal, not octal (bash reads 0900 as an invalid octal number).
+committed_repo "$(vcfg "echo run >> $O/runs" '{"test_timeout_sec":"0900","test_lock_wait_sec":"0090"}')"; : > "$O/runs"
+run_stop "$R" false
+[ "$RC" = 0 ] && [ "$(runs)" = 1 ] && ok "zero-padded limits (0900) -> read as decimal, suite runs green" || no "leading zero: expected 0 + 1 run, got $RC, $(runs): $OUT"
+rm -rf "$R"
+
+# The Stop hook's own timeout must outlast the runner's default wait + run (600 + 600), or Claude Code
+# cancels the hook mid-suite and the turn ends with no decision.
+stop_timeout_sec="$(jq -r '.hooks.Stop[0].hooks[] | select(.command|test("verification_gate")) | .timeout // 0' "$HOOKS/hooks.json")"
+[ "$stop_timeout_sec" -gt 1200 ] && ok "hooks.json Stop timeout (${stop_timeout_sec}s) exceeds lock wait + test timeout" || no "hooks.json Stop timeout ${stop_timeout_sec}s must exceed 1200s"
+rm -rf "$O"
+
 # ---- verification_gate review layer (opt-in via components.review_gate) ----
 echo "verification_gate (review layer):"
 VER="$HERE/review_verify.sh"
