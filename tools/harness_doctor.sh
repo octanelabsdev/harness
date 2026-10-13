@@ -30,7 +30,7 @@ fi
 
 # 2. tool scripts exist (+ executable for *.sh)
 echo "tools:"
-for t in tools/review_verify.sh tools/dor_lint.rb tools/ci.sh tools/test_hooks.sh tools/tome.sh \
+for t in tools/review_verify.sh tools/run_tests.sh tools/dor_lint.rb tools/ci.sh tools/test_hooks.sh tools/tome.sh \
          tools/check_shipped_paths.sh tools/smoke_load.sh tools/harness_status.sh tools/harness_doctor.sh \
          tools/harness_update.sh; do
   if [ -f "$PLUGIN/$t" ]; then
