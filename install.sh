@@ -180,7 +180,27 @@ fi
 # --- 4b. per-stack MCP servers (committed .mcp.json), if the stack declares any ---
 mcp="$(printf '%s' "$STACK_JSON" | jq -c '.mcp // empty')"
 if [ -n "$mcp" ] && [ "$DO_MCP" = 1 ]; then
-  python3 - "$TARGET/.mcp.json" "$mcp" <<'PY'
+  # A project entry shadows a same-named user-scope server, so a working global install must win.
+  # Read the user config directly: `claude mcp get` health-checks (starts) the server, and reports
+  # the project entry instead once one exists.
+  user_cfg="${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}"; user_cfg="${user_cfg:-$HOME/.claude.json}"
+  skip=()
+  for name in $(printf '%s' "$mcp" | jq -r 'keys[]'); do
+    if [ -f "$user_cfg" ] && jq -e --arg n "$name" '.mcpServers // {} | has($n)' "$user_cfg" >/dev/null 2>&1; then
+      echo "  mcp: '$name' already configured at user scope — not writing it to .mcp.json"
+      if [ -f "$TARGET/.mcp.json" ] && jq -e --arg n "$name" '.mcpServers // {} | has($n)' "$TARGET/.mcp.json" >/dev/null 2>&1; then
+        echo "  WARN: .mcp.json already has '$name', which overrides your user-scope server — remove it there if it fails to start"
+      fi
+      skip+=("$name")
+    elif printf '%s' "$mcp" | jq -e --arg n "$name" '.[$n].args // [] | index("rails-mcp-server")' >/dev/null \
+         && [ -f "$TARGET/Gemfile" ] && ! grep -Eq "^[[:space:]]*gem[[:space:]]+['\"]rails-mcp-server['\"]" "$TARGET/Gemfile"; then
+      echo "  mcp: '$name' needs the gem before 'bundle exec rails-mcp-server' can start — add to your Gemfile:  gem \"rails-mcp-server\", group: :development (not written)"
+      skip+=("$name")
+    fi
+  done
+  mcp="$(printf '%s' "$mcp" | jq -c --args 'with_entries(select(.key | IN($ARGS.positional[]) | not))' ${skip[@]+"${skip[@]}"})"
+  if [ "$mcp" != "{}" ]; then
+    python3 - "$TARGET/.mcp.json" "$mcp" <<'PY'
 import json, os, sys
 p, mcp = sys.argv[1], json.loads(sys.argv[2])
 s = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) > 0 else {}
@@ -191,8 +211,6 @@ with open(p, "w") as f:
     json.dump(s, f, indent=2); f.write("\n")
 print("  wrote .mcp.json ground-truth server(s):", ", ".join(mcp.keys()))
 PY
-  if printf '%s' "$mcp" | grep -q 'rails-mcp-server' && [ -f "$TARGET/Gemfile" ] && ! grep -q 'rails-mcp-server' "$TARGET/Gemfile"; then
-    echo "  NOTE: add the gem so 'bundle exec rails-mcp-server' resolves — in your Gemfile:  gem \"rails-mcp-server\", group: :development"
   fi
 elif [ -n "$mcp" ]; then
   echo "  (skipped MCP wiring per --no-mcp; stack declares: $(printf '%s' "$mcp" | jq -r 'keys|join(", ")'))"
@@ -258,7 +276,7 @@ cat <<EOF
   stack       : $(printf '%s' "$STACK_JSON" | jq -r '.name')
   gates active: ${active:-none (all off)}
   plugin      : $([ "$DO_PLUGIN" = 1 ] && echo "enabled ($SCOPE scope, marketplace pinned ${PIN_REF:-UNPINNED}${PIN_SHA:+@${PIN_SHA:0:12}})" || echo "not enabled")
-  mcp         : $( [ -n "$(printf '%s' "$STACK_JSON" | jq -c '.mcp // empty')" ] && { [ "$DO_MCP" = 1 ] && echo ".mcp.json written ($(printf '%s' "$STACK_JSON" | jq -r '.mcp|keys|join(", ")'))" || echo "skipped (--no-mcp)"; } || echo "none for this stack")
+  mcp         : $( [ -n "$(printf '%s' "$STACK_JSON" | jq -c '.mcp // empty')" ] && { [ "$DO_MCP" = 1 ] && { [ "$mcp" != "{}" ] && echo ".mcp.json written ($(printf '%s' "$mcp" | jq -r 'keys|join(", ")'))" || echo "not written (user-scope server or missing gem)"; } || echo "skipped (--no-mcp)"; } || echo "none for this stack")
   agents      : Bring-Your-Own — put your agents in .claude/agents/ (none shipped)
   skills      : guardrails, story-writer, product-manager, bookshelf, blind-review come with the plugin
   commands    : /harness:init, /harness:agents, /harness:status, /harness:doctor
