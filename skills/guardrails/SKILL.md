@@ -1,6 +1,6 @@
 ---
 name: guardrails
-description: Engineering-discipline guardrails — short event-triggered checklists to run at known failure points. Load when creating or modifying code, debugging a failed command or test, before claiming work done or committing, when touching language traps (dates/times, float money, async, sort, division, regex, mutation, closures), when asserting a code path is live or sizing its cost/impact, or when concluding code is wrong/dead or planning on how an external system behaves. Stack-agnostic.
+description: Engineering-discipline guardrails — short event-triggered checklists to run at known failure points. Load when creating or modifying code, debugging a failed command or test, before claiming work done or committing, when touching language traps (dates/times, float money, async, sort, division, regex, mutation, closures), when asserting a code path is live or sizing its cost/impact, when concluding code is wrong/dead or planning on how an external system behaves, when naming existing code as the pattern to follow or adding new behavior to existing code in its style, or when planning, delegating, or adding abstractions, options, dependencies, or files beyond the ask. Stack-agnostic.
 ---
 
 # Guardrails
@@ -18,6 +18,8 @@ one reference the current moment calls for, not all of them.
 | are about to write "done / fixed / works / passing / complete", or run `git commit` / `gh pr create` | `references/VERIFY.md` |
 | are about to call a code path live/running, blame it for a production symptom, or size its cost/impact/priority | `references/RUNTIME.md` |
 | are about to conclude code is dead/wrong/removable, override a comment/doc/author, or build a plan on how an external system/API/framework behaves | `references/MECHANISM.md` |
+| are about to name existing code as the pattern to follow, or add new behavior to an existing code path in its style | `references/PRECEDENT.md` |
+| are about to plan or delegate an implementation, add a new abstraction/option/flag/dependency/file, or report a diff wider than the ask | `references/SCOPE.md` |
 | surface a problem that isn't the current task (a gap, stale data, a dead job, a bug next door) | `references/VERIFY.md` (V13) |
 
 Each reference states its trigger in its opening line and lists IDed items with an echo protocol
