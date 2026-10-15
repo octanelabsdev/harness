@@ -181,13 +181,19 @@ fi
 mcp="$(printf '%s' "$STACK_JSON" | jq -c '.mcp // empty')"
 if [ -n "$mcp" ] && [ "$DO_MCP" = 1 ]; then
   # A project entry shadows a same-named user-scope server, so a working global install must win.
+  # Read the user config directly: `claude mcp get` health-checks (starts) the server, and reports
+  # the project entry instead once one exists.
+  user_cfg="${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}"; user_cfg="${user_cfg:-$HOME/.claude.json}"
   skip=()
   for name in $(printf '%s' "$mcp" | jq -r 'keys[]'); do
-    if command -v claude >/dev/null 2>&1 && (cd "$TARGET" && claude mcp get "$name" 2>/dev/null) | grep -q 'Scope: User'; then
+    if [ -f "$user_cfg" ] && jq -e --arg n "$name" '.mcpServers // {} | has($n)' "$user_cfg" >/dev/null 2>&1; then
       echo "  mcp: '$name' already configured at user scope — not writing it to .mcp.json"
+      if [ -f "$TARGET/.mcp.json" ] && jq -e --arg n "$name" '.mcpServers // {} | has($n)' "$TARGET/.mcp.json" >/dev/null 2>&1; then
+        echo "  WARN: .mcp.json already has '$name', which overrides your user-scope server — remove it there if it fails to start"
+      fi
       skip+=("$name")
     elif printf '%s' "$mcp" | jq -e --arg n "$name" '.[$n].args // [] | index("rails-mcp-server")' >/dev/null \
-         && [ -f "$TARGET/Gemfile" ] && ! grep -q 'rails-mcp-server' "$TARGET/Gemfile"; then
+         && [ -f "$TARGET/Gemfile" ] && ! grep -Eq "^[[:space:]]*gem[[:space:]]+['\"]rails-mcp-server['\"]" "$TARGET/Gemfile"; then
       echo "  mcp: '$name' needs the gem before 'bundle exec rails-mcp-server' can start — add to your Gemfile:  gem \"rails-mcp-server\", group: :development (not written)"
       skip+=("$name")
     fi
