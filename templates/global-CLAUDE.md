@@ -52,7 +52,8 @@ The **guardrails** skill carries event-triggered checklists. Read the matching o
 trigger fires — before your first file edit (CODE), on a failed command/test (DEBUG), before
 claiming done or committing (VERIFY), when touching language traps (TRAPS), when asserting a path
 is live/costly (RUNTIME), when concluding code is wrong or planning on external behavior
-(MECHANISM). Cite a fired item's ID with one line of evidence; skipping a fired item is a violation.
+(MECHANISM), when following or extending existing code — classify its history and check it against current
+practice regardless of age (PRECEDENT), when planning or adding anything beyond the ask (SCOPE). Cite a fired item's ID with one line of evidence; skipping a fired item is a violation.
 
 ## Testing is not optional
 Every feature ships with tests, written as part of the work — not a follow-up. Prefer

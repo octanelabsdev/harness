@@ -81,7 +81,7 @@ The `skill_nudge` hook (above) is what makes the model reach for the matching sk
 of waiting to be asked.
 
 ### `guardrails`
-A routing table plus six reference playbooks. Read the one whose trigger just fired; cite a fired
+A routing table plus eight reference playbooks. Read the one whose trigger just fired; cite a fired
 item's ID with one line of evidence.
 
 | Trigger | Playbook |
@@ -92,6 +92,8 @@ item's ID with one line of evidence.
 | about to claim done / commit / open a PR | VERIFY |
 | calling a path live, blaming a prod symptom, sizing cost | RUNTIME |
 | concluding code is dead/wrong, or planning on external-system behavior | MECHANISM |
+| naming existing code as the pattern to follow, or adding new behavior to existing code in its style | PRECEDENT |
+| planning/delegating, adding an abstraction/option/dependency/file, or a diff wider than the ask | SCOPE |
 
 ### `story-writer`
 Turns a PRD / cited source / structured input into a Definition-of-Ready card. Its inviolable rule:

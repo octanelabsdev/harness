@@ -19,10 +19,12 @@ stronger in combination.
    - **PreToolUse pipeline gate** — before an edit to the implementation surface, requires a
      Definition-of-Ready story (or an explicit small-fix escape hatch).
 
-3. **Guardrails** (a skill) — six short, event-triggered playbooks the model reads the moment a
+3. **Guardrails** (a skill) — eight short, event-triggered playbooks the model reads the moment a
    known failure pattern is about to happen: `CODE` (before the first edit), `DEBUG` (a failed
    command), `VERIFY` (before claiming done), `TRAPS` (language footguns), `RUNTIME` (asserting a
-   path is live/costly), `MECHANISM` (concluding code is wrong or planning on external behavior).
+   path is live/costly), `MECHANISM` (concluding code is wrong or planning on external behavior),
+   `PRECEDENT` (following or extending existing code — classify its history, check it against current practice), `SCOPE`
+   (planning or adding beyond the ask — build the smallest change, propose the extras).
 
 4. **The PM pipeline** (two skills + a lint) — `story-writer` turns a requirement into a
    Definition-of-Ready card (never inventing boundaries; running a deterministic DoR lint), and
