@@ -14,7 +14,8 @@ no() { printf '  ✘ %s\n' "$1" >&2; fail=$((fail+1)); }
 has()   { grep -qF -- "$2" <<< "$1" && ok "$3" || no "$3 — output lacked: $2"; }
 lacks() { grep -qF -- "$2" <<< "$1" && no "$3 — output had: $2" || ok "$3"; }
 
-ROOT="$(mktemp -d "${TMPDIR:-/tmp}/harness-installtest.XXXXXX")"
+# macOS sets TMPDIR with a trailing slash; the installer normalizes paths, so ours must match.
+tmp="${TMPDIR:-/tmp}"; tmp="${tmp%"${tmp##*[!/]}"}"; ROOT="$(mktemp -d "${tmp:-/tmp}/harness-installtest.XXXXXX")"
 trap 'rm -rf "$ROOT"' EXIT
 
 # fresh <case> -> sets H (fake HOME), APP (target project), BIN (fake PATH dir)

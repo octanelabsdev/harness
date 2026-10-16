@@ -283,5 +283,19 @@ verify "$R"; rc=$?
 [ "$rc" = 2 ] && ok "legacy artifact (no base), committed -> stale as before" || no "legacy committed: expected 2, got $rc"
 rm -rf "$R"
 
+# ---- skill_nudge (SessionStart) ----
+echo "skill_nudge:"
+NUDGE="$(CLAUDE_PROJECT_DIR="${TMPDIR:-/tmp}" bash "$HOOKS/skill_nudge.sh" </dev/null)"
+# Every guardrails playbook needs its trigger in the nudge; a new playbook fails here until added.
+declare -A TRIGGER=([CODE]="first file edit" [DEBUG]="failed command" [VERIFY]="before claiming" [TRAPS]="language trap"
+                    [RUNTIME]="code path live" [MECHANISM]="external system" [PRECEDENT]="existing code as the pattern"
+                    [SCOPE]="beyond the ask")
+for f in "$HERE/../skills/guardrails/references/"*.md; do
+  p="$(basename "$f" .md)"
+  if [ -z "${TRIGGER[$p]:-}" ]; then no "nudge: playbook $p has no trigger mapped — add it to skill_nudge.sh and this test"
+  elif grep -qF "${TRIGGER[$p]}" <<< "$NUDGE"; then ok "nudge mentions the $p trigger"
+  else no "nudge lacks the $p trigger ('${TRIGGER[$p]}')"; fi
+done
+
 echo
 if [ "$fail" = 0 ]; then echo "OK: hook tests passed ($pass)."; exit 0; else echo "FAIL: $fail hook test(s), $pass passed." >&2; exit 1; fi

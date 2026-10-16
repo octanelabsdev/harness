@@ -24,7 +24,11 @@ HARNESS SKILLS — invoke proactively; availability ≠ activation. These plugin
 NOT auto-apply. Invoke the matching one yourself via the Skill tool the moment its trigger fires — do
 not wait to be asked and do not require a /command:
   • guardrails      → before your first file edit, on a failed command/test, before claiming
-                      done/passing/complete or committing, or when touching a language trap
+                      done/passing/complete or committing, when touching a language trap, when
+                      calling a code path live or sizing its cost, when concluding code is
+                      wrong/dead or planning on how an external system behaves, when following
+                      existing code as the pattern, or when planning/delegating or adding
+                      anything beyond the ask
   • product-manager → when deciding what to work on next, triaging a backlog/board, or routing
                       ready work to an engineer
   • story-writer    → when creating or refining a work item / ticket / story before implementation

@@ -25,7 +25,10 @@ Skills are **listed, not auto-applied**: at session start Claude Code registers 
 but a skill's instructions only take effect once it's invoked (activation). Without a prompt the
 operator has to type `/harness:<name>` before a skill shapes the response. This hook injects a
 directive so the model invokes the right skill *on its own* the moment a trigger fires — `guardrails`
-(before a first edit / on a failed command / before claiming done), `product-manager` (deciding
+(each playbook's trigger: before a first edit, on a failed command, before claiming done, on a
+language trap, calling a path live or sizing its cost, concluding code is wrong or planning on
+external behavior, following existing code as the pattern, planning or adding beyond the ask),
+`product-manager` (deciding
 what's next / triaging / routing ready work), `story-writer` (writing or refining a story). It changes
 model behavior only; a hook cannot call a skill itself.
 
