@@ -185,6 +185,22 @@ printf '#!/bin/sh\nbash tools/check_shipped_paths.sh && bash tools/smoke_load.sh
 chmod +x .git/hooks/pre-push
 ```
 
+**Docs ship with every change.** A change to harness behavior (`install.sh`, `hooks/`, `lib/`,
+`tools/`, `skills/`, `stacks/`, `commands/`) updates the docs that describe it in the same branch.
+`tools/check_docs.sh` (run by `tools/ci.sh`) fails a branch that changes behavior but no file under
+`docs/` or `README.md`; when there's truly nothing to document, say why in a commit message line
+`Docs-Not-Needed: <reason>`.
+
+**Publish the docs after every release.** Merged markdown isn't published until the site is
+redeployed. From an up-to-date `main`, after tagging:
+
+```sh
+pip install -r requirements-docs.txt
+mkdocs gh-deploy --strict -m "Deploy docs {sha} for vX.Y.Z"
+```
+
+A release isn't done until [harness.octanelabs.dev](https://harness.octanelabs.dev) matches the tag.
+
 ## Requirements
 
 Claude Code, plus `bash`, `git`, `jq`, and `python3`. (`ruby` if you use the story-writer's DoR lint.)

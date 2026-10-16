@@ -50,6 +50,18 @@ enforcing gates stay inert.
   has no toggle — it only acts when there's no config yet; see [components.md](components.md).)
 - **`agents_bundle`** (optional) — the default agent bundle `/harness:agents` pulls when given no
   repo. `repo` is an `owner/name` slug or git URL; `glob` lists which files in the bundle are agents.
+- **`mcp`** (optional) — MCP servers the installer writes to the project's committed `.mcp.json`, in
+  `.mcp.json`'s own `{"name": {"command": …, "args": […]}}` shape. A server you already have at user
+  scope is skipped, since a project entry would override it.
+- **`mcp_user`** (optional) — one MCP server shared by every project at **user scope**, instead of a
+  project entry. `name` is the server name, `bin` the executable, `args` its arguments, and
+  `projects_file` the server's project list (relative to `$HOME`). The installer registers the app in
+  `projects_file` and, if the server isn't configured yet, prints the `claude mcp add --scope user`
+  line with an absolute path; `/harness:doctor` checks both. The `rails` preset uses this for
+  rails-mcp-server.
+- **`mcp_guides`** (optional) — framework guides the MCP server reads: `resources_dir` (relative to
+  `$HOME`), the `download_cmd` that fetches them, and the `libs` to check. The installer nudges you
+  to download any missing ones (`--mcp-download` fetches them).
 
 Paths are directory prefixes, repo-relative — not globs. `app` matches `app/models/x.rb`.
 
