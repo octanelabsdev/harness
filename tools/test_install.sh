@@ -79,5 +79,27 @@ out="$(install --no-mcp)"
 [ ! -e "$(PFILE)" ] && ok "--no-mcp -> projects.yml not touched" || no "--no-mcp wrote projects.yml"
 has "$out" "mcp         : skipped (--no-mcp)" "--no-mcp -> summary says skipped"
 
+echo "doctor and status:"
+tool() { env -u CLAUDE_CONFIG_DIR HOME="$H" PATH="$BIN:/usr/bin:/bin" CLAUDE_PROJECT_DIR="$APP" "$BASH" "$HERE/$1" 2>&1; }
+
+fresh healthy; user_rails; install >/dev/null
+out="$(tool harness_doctor.sh)"
+has "$out" "user-scope 'rails' MCP server configured" "doctor: user-scope server found"
+has "$out" "project registered in" "doctor: projects.yml registration found"
+has "$(tool harness_status.sh)" "MCP (user scope):  rails  (configured)" "status: user-scope server shown"
+
+fresh unwired; install >/dev/null; rm -f "$(PFILE)"
+out="$(tool harness_doctor.sh)"
+has "$out" "no user-scope 'rails' MCP server" "doctor: missing user-scope server flagged"
+has "$out" "project not in" "doctor: missing registration flagged"
+has "$(tool harness_status.sh)" "rails  NOT configured" "status: missing user-scope server shown"
+
+fresh legacy; user_rails; mkdir -p "$APP/.claude"
+printf '{"components":{},"stack":{"name":"rails","mcp":{"rails":{"command":"bundle","args":["exec","rails-mcp-server"]}}}}\n' > "$APP/.claude/harness.json"
+printf '{"mcpServers":{"rails":{"command":"bundle","args":["exec","rails-mcp-server","--mode","stdio"]}}}\n' > "$APP/.mcp.json"
+out="$(tool harness_doctor.sh)"
+has "$out" ".mcp.json runs rails-mcp-server through bundle exec" "doctor: pre-mcp_user install -> bundled override flagged"
+has "$out" "project not in" "doctor: pre-mcp_user install -> registration checked via the stack preset"
+
 echo
 if [ "$fail" = 0 ]; then echo "OK: install tests passed ($pass)."; else echo "FAIL: $fail install test(s) failed ($pass passed)." >&2; exit 1; fi

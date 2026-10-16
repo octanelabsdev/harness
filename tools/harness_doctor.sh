@@ -63,6 +63,32 @@ else
   if [ "$(hcfg '.components."review_gate"' 'false')" = "true" ]; then
     if [ -d .claude/agents ] && ls .claude/agents/*.md >/dev/null 2>&1; then ok "review_gate on + a reviewer agent is present"; else bad "review_gate on but no reviewer in .claude/agents (BYO a reviewer)"; fi
   fi
+  # A user-scope MCP server (rails-mcp-server). Fall back to the stack preset so installs from before
+  # the stack declared it are checked too.
+  srv="$(jq -c '.stack.mcp_user // empty' "$cfg" 2>/dev/null)"
+  sname="$(hcfg '.stack.name' '')"
+  [ -z "$srv" ] && [ -n "$sname" ] && [ -f "$PLUGIN/stacks/$sname.json" ] && srv="$(jq -c '.mcp_user // empty' "$PLUGIN/stacks/$sname.json" 2>/dev/null)"
+  if [ -n "$srv" ]; then
+    sv_name="$(jq -r '.name' <<< "$srv")"; sv_bin="$(jq -r '.bin' <<< "$srv")"
+    pfile="$HOME/$(jq -r '.projects_file' <<< "$srv")"
+    user_cfg="${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}"; user_cfg="${user_cfg:-$HOME/.claude.json}"
+    if [ -f "$user_cfg" ] && jq -e --arg n "$sv_name" '.mcpServers // {} | has($n)' "$user_cfg" >/dev/null 2>&1; then
+      ok "user-scope '$sv_name' MCP server configured"
+    else
+      note "no user-scope '$sv_name' MCP server — re-run the installer for the 'claude mcp add --scope user' line"
+    fi
+    registered=0; phys="$(pwd -P)"
+    if [ -f "$pfile" ]; then
+      while IFS= read -r line; do
+        v="${line#*:}"; v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"; v="${v#[\"\']}"; v="${v%[\"\']}"
+        [ "$v" = "$repo" ] || [ "$v" = "$phys" ] && { registered=1; break; }
+      done < <(grep -v '^[[:space:]]*#' "$pfile")
+    fi
+    [ "$registered" = 1 ] && ok "project registered in $pfile" || note "project not in $pfile — the '$sv_name' server can't see it; re-run the installer"
+    if [ -f .mcp.json ] && jq -e --arg b "$sv_bin" '[.mcpServers // {} | .[] | select(.command == "bundle" and ((.args // []) | index($b)))] | length > 0' .mcp.json >/dev/null 2>&1; then
+      note ".mcp.json runs $sv_bin through bundle exec, which overrides the user-scope server — remove that entry and the gem (docs/troubleshooting.md)"
+    fi
+  fi
 fi
 
 echo "releases:"

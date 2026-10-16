@@ -111,9 +111,13 @@ Agents do better work grounded in truth than in memory. Two complementary, **sta
 mechanisms — both wired by the installer, neither hard-coded to a `$HOME` path:
 
 1. **A ground-truth MCP server** (what the app *is* — schema/routes/live code). A stack profile's
-   `mcp` block is written to a committed `.mcp.json`. The rails preset ships
-   `rails: bundle exec rails-mcp-server` (add the `rails-mcp-server` gem to your Gemfile dev group so
-   `bundle exec` resolves). Instruct your agents to query it before inferring structure from partial reads.
+   `mcp` block is written to a committed `.mcp.json`. The rails preset instead uses one **user-scope**
+   `rails` server (`mcp_user`) shared by every app: rails-mcp-server runs standalone and shells into
+   each app's own `bin/rails`, so it never goes in the app's Gemfile. The installer registers the app in
+   `~/.config/rails-mcp/projects.yml` and, if you don't have the server yet, prints the one-time
+   `claude mcp add --scope user rails -- /absolute/path/to/rails-mcp-server --mode stdio` line.
+   `/harness:doctor` flags a missing server, a missing registration, or a project `.mcp.json` entry
+   that overrides it. Instruct your agents to query it before inferring structure from partial reads.
 
 2. **Guide/reference bookshelves** (the *how/why*):
    - **MCP guide resources** — framework docs the server's `load_guide` reads. A stack's `mcp_guides`

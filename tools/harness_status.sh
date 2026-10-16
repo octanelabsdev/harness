@@ -39,12 +39,21 @@ else
 fi
 [ -n "$cfg" ] && { b="$(jq -rc '.stack.agents_bundle.repo // empty' "$cfg" 2>/dev/null)"; [ -n "$b" ] && echo "  default bundle:  $b"; }
 
+sv="$(hcfg '.stack.mcp_user.name' '')"
 if [ -f .mcp.json ]; then
   echo "MCP servers:       $(jq -rc '(.mcpServers // {}) | keys | join(", ") | if .=="" then "(.mcp.json has none)" else . end' .mcp.json 2>/dev/null)  (.mcp.json)"
 elif [ -n "$cfg" ] && [ "$(jq -r '(.stack.mcp // {}) | length' "$cfg" 2>/dev/null)" != "0" ]; then
   echo "MCP servers:       $(jq -rc '.stack.mcp | keys | join(", ")' "$cfg")  (declared by stack; no .mcp.json yet — run /harness:init)"
-else
+elif [ -z "$sv" ]; then
   echo "MCP servers:       none configured"
+fi
+if [ -n "$sv" ]; then
+  ucfg="${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}"; ucfg="${ucfg:-$HOME/.claude.json}"
+  if [ -f "$ucfg" ] && jq -e --arg n "$sv" '.mcpServers // {} | has($n)' "$ucfg" >/dev/null 2>&1; then
+    echo "MCP (user scope):  $sv  (configured)"
+  else
+    echo "MCP (user scope):  $sv  NOT configured — /harness:doctor"
+  fi
 fi
 
 if [ -n "$cfg" ]; then
