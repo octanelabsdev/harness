@@ -916,6 +916,18 @@ enforcing gates stay inert.</p>
   has no toggle — it only acts when there's no config yet; see <a href="../components/">components.md</a>.)</li>
 <li><strong><code>agents_bundle</code></strong> (optional) — the default agent bundle <code>/harness:agents</code> pulls when given no
   repo. <code>repo</code> is an <code>owner/name</code> slug or git URL; <code>glob</code> lists which files in the bundle are agents.</li>
+<li><strong><code>mcp</code></strong> (optional) — MCP servers the installer writes to the project's committed <code>.mcp.json</code>, in
+  <code>.mcp.json</code>'s own <code>{"name": {"command": …, "args": […]}}</code> shape. A server you already have at user
+  scope is skipped, since a project entry would override it.</li>
+<li><strong><code>mcp_user</code></strong> (optional) — one MCP server shared by every project at <strong>user scope</strong>, instead of a
+  project entry. <code>name</code> is the server name, <code>bin</code> the executable, <code>args</code> its arguments, and
+  <code>projects_file</code> the server's project list (relative to <code>$HOME</code>). The installer registers the app in
+  <code>projects_file</code> and, if the server isn't configured yet, prints the <code>claude mcp add --scope user</code>
+  line with an absolute path; <code>/harness:doctor</code> checks both. The <code>rails</code> preset uses this for
+  rails-mcp-server.</li>
+<li><strong><code>mcp_guides</code></strong> (optional) — framework guides the MCP server reads: <code>resources_dir</code> (relative to
+  <code>$HOME</code>), the <code>download_cmd</code> that fetches them, and the <code>libs</code> to check. The installer nudges you
+  to download any missing ones (<code>--mcp-download</code> fetches them).</li>
 </ul>
 <p>Paths are directory prefixes, repo-relative — not globs. <code>app</code> matches <code>app/models/x.rb</code>.</p>
 <h2 id="stack-presets">Stack presets<a class="headerlink" href="#stack-presets" title="Permanent link">&para;</a></h2>

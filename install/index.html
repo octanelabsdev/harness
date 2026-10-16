@@ -1120,7 +1120,7 @@ bootstraps itself the first time you open a session in an unconfigured project:<
 </tr>
 <tr>
 <td><code>/harness:doctor</code></td>
-<td>Deterministic health check — verifies hooks, tool scripts, schema, and config are present and wired. Exits non-zero on a gap (CI/pre-push safe).</td>
+<td>Deterministic health check — verifies hooks, tool scripts, schema, and config are present and wired. For a stack with a user-scope MCP server (rails), it also warns when the server isn't configured at user scope, the app isn't in the server's <code>projects.yml</code>, or a project <code>.mcp.json</code> entry runs it through <code>bundle exec</code>. Exits non-zero on a gap (CI/pre-push safe).</td>
 </tr>
 <tr>
 <td><code>/harness:update [--apply]</code></td>
