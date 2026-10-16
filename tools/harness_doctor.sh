@@ -32,7 +32,7 @@ fi
 echo "tools:"
 for t in tools/review_verify.sh tools/dor_lint.rb tools/ci.sh tools/test_hooks.sh tools/tome.sh \
          tools/check_shipped_paths.sh tools/smoke_load.sh tools/harness_status.sh tools/harness_doctor.sh \
-         tools/harness_update.sh; do
+         tools/harness_update.sh tools/projects_yml.py; do
   if [ -f "$PLUGIN/$t" ]; then
     case "$t" in
       *.sh) [ -x "$PLUGIN/$t" ] && ok "$t" || note "$t present but not executable (chmod +x)";;
@@ -62,6 +62,29 @@ else
   fi
   if [ "$(hcfg '.components."review_gate"' 'false')" = "true" ]; then
     if [ -d .claude/agents ] && ls .claude/agents/*.md >/dev/null 2>&1; then ok "review_gate on + a reviewer agent is present"; else bad "review_gate on but no reviewer in .claude/agents (BYO a reviewer)"; fi
+  fi
+  # A user-scope MCP server (rails-mcp-server). Fall back to the stack preset so installs from before
+  # the stack declared it are checked too.
+  srv="$(jq -c '.stack.mcp_user // empty' "$cfg" 2>/dev/null)"
+  sname="$(hcfg '.stack.name' '')"
+  [ -z "$srv" ] && [ -n "$sname" ] && [ -f "$PLUGIN/stacks/$sname.json" ] && srv="$(jq -c '.mcp_user // empty' "$PLUGIN/stacks/$sname.json" 2>/dev/null)"
+  if [ -n "$srv" ]; then
+    sv_name="$(jq -r '.name' <<< "$srv")"; sv_bin="$(jq -r '.bin' <<< "$srv")"
+    pfile="$HOME/$(jq -r '.projects_file' <<< "$srv")"
+    user_cfg="${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}"; user_cfg="${user_cfg:-$HOME/.claude.json}"
+    if [ -f "$user_cfg" ] && jq -e --arg n "$sv_name" '.mcpServers // {} | has($n)' "$user_cfg" >/dev/null 2>&1; then
+      ok "user-scope '$sv_name' MCP server configured"
+    else
+      note "no user-scope '$sv_name' MCP server — re-run the installer for the 'claude mcp add --scope user' line"
+    fi
+    if python3 "$PLUGIN/tools/projects_yml.py" has "$pfile" "$repo" >/dev/null 2>&1; then
+      ok "project registered in $pfile"
+    else
+      note "project not in $pfile — the '$sv_name' server can't see it; re-run the installer"
+    fi
+    if [ -f .mcp.json ] && jq -e --arg b "$sv_bin" '[.mcpServers // {} | .[] | select(.command == "bundle" and ((.args // []) | index($b)))] | length > 0' .mcp.json >/dev/null 2>&1; then
+      note ".mcp.json runs $sv_bin through bundle exec, which overrides the user-scope server — remove that entry and the gem (docs/troubleshooting.md)"
+    fi
   fi
 fi
 

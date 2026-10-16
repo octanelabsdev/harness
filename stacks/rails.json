@@ -9,8 +9,11 @@
     "repo": "octanelabsdev/rails-agents",
     "glob": ["rails-*.md", "dhh-code-reviewer.md"]
   },
-  "mcp": {
-    "rails": { "command": "bundle", "args": ["exec", "rails-mcp-server", "--mode", "stdio"] }
+  "mcp_user": {
+    "name": "rails",
+    "bin": "rails-mcp-server",
+    "args": ["--mode", "stdio"],
+    "projects_file": ".config/rails-mcp/projects.yml"
   },
   "mcp_guides": {
     "resources_dir": ".config/rails-mcp/resources",

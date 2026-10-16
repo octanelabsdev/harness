@@ -97,7 +97,7 @@ the plugin code can't shift under you):
 ### B. With the installer (does everything)
 
 The installer sets up the parts the plugin can't — `.claude/harness.json`, pinned plugin enablement,
-`.mcp.json`, `TOMES_DIR` — interactively:
+MCP wiring, `TOMES_DIR` — interactively:
 
 ```sh
 git clone https://github.com/octanelabsdev/harness ~/harness

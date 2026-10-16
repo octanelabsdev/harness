@@ -56,9 +56,9 @@ Re-link them (see [agents.md](agents.md)).
   `exit 2` when warnings exist). Promote only after the warn phase is quiet on false positives.
 
 ## The `rails` MCP server won't connect (`-32602 Unsupported protocol version`)
-On a **legacy Rails app** the installer's in-bundle MCP setup pins a dead version of the server. The
-installer writes `.mcp.json` with `bundle exec rails-mcp-server` and adds `gem "rails-mcp-server"` to
-the Gemfile — but on an old app (e.g. Rails 7.0 / rack 2.2) bundler can only resolve rails-mcp-server
+Installers before v0.2.7 wrote a project `.mcp.json` running `bundle exec rails-mcp-server` and
+suggested `gem "rails-mcp-server"` in the Gemfile. A project entry overrides your user-scope `rails`
+server, and on a **legacy Rails app** (e.g. Rails 7.0 / rack 2.2) bundler can only resolve rails-mcp-server
 **1.0.1**, because every protocol-compatible release (1.2.0+ switched to `fast-mcp`; 1.6.1/2.0.0 need
 newer `activesupport`) conflicts with the app's locked deps. 1.0.1 → `mcp-rb 0.3.2` speaks **only** MCP
 protocol `2024-11-05` and *hard-rejects* the newer version Claude Code offers instead of negotiating
@@ -68,22 +68,21 @@ down — so the handshake dies with `-32602`.
 cwd-sensitive and, launched from the project dir, resolves to the same broken in-bundle 1.0.1 (its
 `version` output from `$HOME` is misleading).
 
-**Fix — run it standalone, by absolute path.** rails-mcp-server is a standalone tool: it reads
-`~/.config/rails-mcp/projects.yml` and introspects by shelling into the target app's own `bin/rails`,
-so it never needs to be in the app bundle. Install a current version outside the bundle
-(`gem install rails-mcp-server` under a modern Ruby, or via mise global) and point `.mcp.json` at it
-directly:
+**Fix — one standalone server at user scope, by absolute path.** rails-mcp-server is a standalone
+tool: it reads `~/.config/rails-mcp/projects.yml` and introspects by shelling into the target app's own
+`bin/rails`, so it never needs to be in the app bundle.
 
-```json
-{ "mcpServers": { "rails": {
-  "command": "/absolute/path/to/rails-mcp-server",
-  "args": ["--mode", "stdio"]
-} } }
-```
+1. Install a current version outside any bundle (`gem install rails-mcp-server` under a modern Ruby,
+   or via mise global), then add it once per machine:
+   `claude mcp add --scope user rails -- /absolute/path/to/rails-mcp-server --mode stdio`
+   (re-running the installer prints this line with the path filled in).
+2. In the app: delete the `rails` entry from `.mcp.json` (the whole file if it was the only one) and
+   `gem "rails-mcp-server"` from the Gemfile, then `bundle install`.
+3. Re-run the installer (or add `<name>: "/path/to/app"` to `projects.yml` yourself) and restart
+   Claude Code. `/harness:doctor` should report the user-scope server and the registration, with no
+   override warning.
 
-2.0.0 (fast-mcp) negotiates the handshake and Claude Code connects (after a restart). Then remove
-`gem "rails-mcp-server"` from the app Gemfile. **Installer TODO:** stop adding the gem in-bundle and
-stop using `bundle exec` — detect a standalone install and reference its absolute path instead.
+2.0.0 (fast-mcp) negotiates the handshake and Claude Code connects.
 
 ## Validate a change to the harness itself
 ```sh
