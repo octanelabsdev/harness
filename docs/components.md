@@ -94,6 +94,7 @@ item's ID with one line of evidence.
 | concluding code is dead/wrong, or planning on external-system behavior | MECHANISM |
 | naming existing code as the pattern to follow, or adding new behavior to existing code in its style | PRECEDENT |
 | planning/delegating, adding an abstraction/option/dependency/file, or a diff wider than the ask | SCOPE |
+| surfacing a problem that isn't the current task | VERIFY (V13) — file it as a card and a backlog entry, without asking |
 
 ### `story-writer`
 Turns a PRD / cited source / structured input into a Definition-of-Ready card. Its inviolable rule:

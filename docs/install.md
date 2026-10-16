@@ -122,7 +122,7 @@ These commands ship with the plugin:
 | `/harness:init [flags]` | Runs this installer non-interactively for the current project. No args → auto-detect stack, all components (warn mode), committed enablement. Pass through any installer flag (`--stack`, `--components`, `--local`, `--no-plugin`, …). |
 | `/harness:agents [--copy] [owner/repo]` | Brings a stack's agent bundle into `.claude/agents/`. No args → the stack's default bundle (e.g. Rails → `octanelabsdev/rails-agents`), **symlinked** and gitignored (per-developer). `--copy` commits real files (whole team). Pass `owner/repo` (or a git URL) to override the bundle. See [agents.md](agents.md). |
 | `/harness:status` | Inventory of what's loaded/configured in this project (components, stack profile, agents, MCP, bookshelf, session markers). |
-| `/harness:doctor` | Deterministic health check — verifies hooks, tool scripts, schema, and config are present and wired. Exits non-zero on a gap (CI/pre-push safe). |
+| `/harness:doctor` | Deterministic health check — verifies hooks, tool scripts, schema, and config are present and wired. For a stack with a user-scope MCP server (rails), it also warns when the server isn't configured at user scope, the app isn't in the server's `projects.yml`, or a project `.mcp.json` entry runs it through `bundle exec`. Exits non-zero on a gap (CI/pre-push safe). |
 | `/harness:update [--apply]` | Checks whether a newer release tag exists (read-only by default). With `--apply`, bumps this project's pinned `ref` to the latest tag; then run `/plugin marketplace update harness` and `/reload-plugins` to activate. See [Updating](#updating). |
 
 ## Updating
