@@ -100,6 +100,30 @@ printf '{"mcpServers":{"rails":{"command":"bundle","args":["exec","rails-mcp-ser
 out="$(tool harness_doctor.sh)"
 has "$out" ".mcp.json runs rails-mcp-server through bundle exec" "doctor: pre-mcp_user install -> bundled override flagged"
 has "$out" "project not in" "doctor: pre-mcp_user install -> registration checked via the stack preset"
+has "$(tool harness_status.sh)" "MCP (user scope):  rails" "status: pre-mcp_user install -> user-scope server shown via the stack preset"
+
+echo "projects.yml edge cases:"
+fresh unicode; user_rails; APP="$ROOT/unicode/Café \"x\""; mkdir -p "$APP"
+install >/dev/null; install >/dev/null; out="$(install)"
+has "$out" "already registered" "non-ASCII/quoted path -> recognised on re-run"
+[ "$(wc -l < "$(PFILE)" | tr -d ' ')" = 1 ] && ok "non-ASCII/quoted path -> one entry after three runs" || no "duplicated: $(cat "$(PFILE)")"
+grep -qF 'Café' "$(PFILE)" && ok "non-ASCII written as-is, not \\u-escaped" || no "escaped: $(cat "$(PFILE)")"
+
+fresh comment; user_rails; mkdir -p "$H/.config/rails-mcp"
+printf '# my apps\napp: "%s" # main checkout\n' "$APP" > "$(PFILE)"
+out="$(install)"
+has "$out" "already registered" "entry with a trailing comment -> recognised"
+[ "$(wc -l < "$(PFILE)" | tr -d ' ')" = 2 ] && ok "entry with a trailing comment -> not duplicated" || no "duplicated: $(cat "$(PFILE)")"
+
+fresh badbytes; user_rails; mkdir -p "$H/.config/rails-mcp"; printf 'old: "/\xff"\n' > "$(PFILE)"
+out="$(install)"
+has "$out" "mcp         : user-scope 'rails' server" "non-UTF-8 projects.yml -> install still completes"
+
+fresh symlink; user_rails
+mkdir -p "$ROOT/symlink/real/app"; ln -s "$ROOT/symlink/real" "$ROOT/symlink/link"
+APP="$ROOT/symlink/link/app"; git -C "$APP" init -q
+install >/dev/null
+has "$(tool harness_doctor.sh)" "project registered in" "installed via a symlinked path -> doctor finds the registration"
 
 echo
 if [ "$fail" = 0 ]; then echo "OK: install tests passed ($pass)."; else echo "FAIL: $fail install test(s) failed ($pass passed)." >&2; exit 1; fi

@@ -225,32 +225,11 @@ if [ -n "$srv" ] && [ "$DO_MCP" = 1 ]; then
   name="$(printf '%s' "$srv" | jq -r '.name')"; bin="$(printf '%s' "$srv" | jq -r '.bin')"
   args="$(printf '%s' "$srv" | jq -r '.args // [] | join(" ")')"
   pfile="$HOME/$(printf '%s' "$srv" | jq -r '.projects_file')"
-  python3 - "$pfile" "$(basename "$TARGET")" "$TARGET" <<'PY'
-import json, os, sys
-p, key, path = sys.argv[1:]
-entries = {}
-if os.path.exists(p):
-    for line in open(p):
-        if ":" not in line or line.lstrip().startswith("#"):
-            continue
-        k, v = line.split(":", 1)
-        entries[k.strip().strip("\"'")] = v.strip().strip("\"'")
-paths = {path, os.path.realpath(path)}
-known = [k for k, v in entries.items() if v in paths or os.path.realpath(v) in paths]
-if known:
-    print(f"  mcp: project already registered in {p} as '{known[0]}'")
-elif key in entries:
-    print(f"  WARN: '{key}' in {p} points at {entries[key]} — add this project under another name: <name>: \"{path}\"")
-else:
-    os.makedirs(os.path.dirname(p), exist_ok=True)
-    tail = open(p).read()[-1:] if os.path.exists(p) else ""
-    with open(p, "a") as f:
-        f.write(("\n" if tail not in ("", "\n") else "") + f"{json.dumps(key)}: {json.dumps(path)}\n")
-    print(f"  mcp: registered this project in {p} as '{key}'")
-PY
+  python3 "$BUNDLE/tools/projects_yml.py" register "$pfile" "$(basename "$TARGET")" "$TARGET" \
+    || echo "  WARN: couldn't update $pfile — add this project yourself: <name>: \"$TARGET\""
   if user_has_mcp "$name"; then
     echo "  mcp: using your user-scope '$name' server"
-    mcp_note="user-scope '$name' server"
+    mcp_note="${mcp_note:+$mcp_note; }user-scope '$name' server"
   else
     # An absolute path to a standalone install. A version-manager shim is cwd-sensitive: launched
     # from the app it resolves to the app's bundled copy.
@@ -264,11 +243,11 @@ PY
       echo "       (gem install $bin, under a current Ruby), then add it once per machine:"
       found="/absolute/path/to/$bin"
     fi
-    echo "         claude mcp add --scope user $name -- $found $args"
-    mcp_note="user-scope '$name' server NOT configured (see above)"
+    echo "         claude mcp add --scope user $name -- $(printf '%q' "$found") $args"
+    mcp_note="${mcp_note:+$mcp_note; }user-scope '$name' server NOT configured (see above)"
   fi
   project_has_mcp "$name" && echo "  WARN: .mcp.json has a '$name' entry, which overrides the user-scope server — remove it (and the $bin gem from the Gemfile)"
-elif [ -n "$srv" ]; then
+elif [ -n "$srv" ] && [ -z "$mcp_note" ]; then
   mcp_note="skipped (--no-mcp)"
 fi
 

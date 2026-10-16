@@ -40,6 +40,8 @@ fi
 [ -n "$cfg" ] && { b="$(jq -rc '.stack.agents_bundle.repo // empty' "$cfg" 2>/dev/null)"; [ -n "$b" ] && echo "  default bundle:  $b"; }
 
 sv="$(hcfg '.stack.mcp_user.name' '')"
+preset="$HERE/../stacks/$(hcfg '.stack.name' '').json"
+[ -z "$sv" ] && [ -n "$cfg" ] && [ -f "$preset" ] && sv="$(jq -r '.mcp_user.name // empty' "$preset" 2>/dev/null)"
 if [ -f .mcp.json ]; then
   echo "MCP servers:       $(jq -rc '(.mcpServers // {}) | keys | join(", ") | if .=="" then "(.mcp.json has none)" else . end' .mcp.json 2>/dev/null)  (.mcp.json)"
 elif [ -n "$cfg" ] && [ "$(jq -r '(.stack.mcp // {}) | length' "$cfg" 2>/dev/null)" != "0" ]; then

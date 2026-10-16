@@ -32,7 +32,7 @@ fi
 echo "tools:"
 for t in tools/review_verify.sh tools/dor_lint.rb tools/ci.sh tools/test_hooks.sh tools/tome.sh \
          tools/check_shipped_paths.sh tools/smoke_load.sh tools/harness_status.sh tools/harness_doctor.sh \
-         tools/harness_update.sh; do
+         tools/harness_update.sh tools/projects_yml.py; do
   if [ -f "$PLUGIN/$t" ]; then
     case "$t" in
       *.sh) [ -x "$PLUGIN/$t" ] && ok "$t" || note "$t present but not executable (chmod +x)";;
@@ -77,14 +77,11 @@ else
     else
       note "no user-scope '$sv_name' MCP server — re-run the installer for the 'claude mcp add --scope user' line"
     fi
-    registered=0; phys="$(pwd -P)"
-    if [ -f "$pfile" ]; then
-      while IFS= read -r line; do
-        v="${line#*:}"; v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"; v="${v#[\"\']}"; v="${v%[\"\']}"
-        [ "$v" = "$repo" ] || [ "$v" = "$phys" ] && { registered=1; break; }
-      done < <(grep -v '^[[:space:]]*#' "$pfile")
+    if python3 "$PLUGIN/tools/projects_yml.py" has "$pfile" "$repo" >/dev/null 2>&1; then
+      ok "project registered in $pfile"
+    else
+      note "project not in $pfile — the '$sv_name' server can't see it; re-run the installer"
     fi
-    [ "$registered" = 1 ] && ok "project registered in $pfile" || note "project not in $pfile — the '$sv_name' server can't see it; re-run the installer"
     if [ -f .mcp.json ] && jq -e --arg b "$sv_bin" '[.mcpServers // {} | .[] | select(.command == "bundle" and ((.args // []) | index($b)))] | length > 0' .mcp.json >/dev/null 2>&1; then
       note ".mcp.json runs $sv_bin through bundle exec, which overrides the user-scope server — remove that entry and the gem (docs/troubleshooting.md)"
     fi
