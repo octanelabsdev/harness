@@ -15,7 +15,7 @@ components with the gates in **warn mode**, and enables the plugin in the projec
 `.claude/settings.json`. Common overrides the user may pass through `$ARGUMENTS`:
 
 - `--stack <name>` — force a stack instead of auto-detect
-- `--components a,b` — only these components (`session_banner,skill_nudge,verification_gate,pipeline_gate`)
+- `--components a,b` — only these components (`session_banner,skill_nudge,context_warning,verification_gate,pipeline_gate`)
 - `--local` — enablement in `.claude/settings.local.json` (just this developer) instead of committed
 - `--no-plugin` — only write `.claude/harness.json`, don't touch settings
 

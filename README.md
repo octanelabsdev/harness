@@ -45,8 +45,9 @@ The harness ships **zero agents**. Bring your own — or use an example bundle l
 ## What's inside
 
 - **Hooks** (`hooks/`) — `harness_bootstrap` (auto-writes `.claude/harness.json` on first session),
-  `session_start_banner`, `skill_nudge`, `verification_gate`, `pipeline_gate`. Portable
-  (`${CLAUDE_PLUGIN_ROOT}`), config-driven (the two informational hooks default on; the enforcing
+  `session_start_banner`, `skill_nudge`, `context_warning`, `verification_gate`, `pipeline_gate`. Portable
+  (`${CLAUDE_PLUGIN_ROOT}`), config-driven (the three informational hooks default on, and
+  `context_warning` warns once each at 150K, 200K and 300K tokens of session context; the enforcing
   gates default off — when on, the pipeline gate warns, the verification gate blocks on a failing
   `test_command`, and its opt-in `review_gate` blocks unless a verified blind-review artifact exists).
 - **Commands** (`commands/`) — `/harness:init` ((re)configure a project via the installer),
@@ -115,7 +116,7 @@ After `install.sh`, your project has:
 ```jsonc
 // .claude/harness.json   (committed — your team shares it)
 {
-  "components": { "session_banner": true, "skill_nudge": true, "verification_gate": true, "pipeline_gate": true },
+  "components": { "session_banner": true, "skill_nudge": true, "context_warning": true, "verification_gate": true, "pipeline_gate": true },
   "stack": {
     "name": "rails",
     "impl_dirs": ["app", "lib", "db/migrate"],
@@ -136,7 +137,7 @@ Open a session and the banner reports it:
 ```
 HARNESS CHECK (SessionStart hook — environment-verified, not model memory):
   global CLAUDE.md : present (72 lines)
-  harness          : configured (stack: rails; active: session_banner, skill_nudge, verification_gate, pipeline_gate)
+  harness          : configured (stack: rails; active: session_banner, skill_nudge, context_warning, verification_gate, pipeline_gate)
   agents (BYO)     : 21 agent(s)
 ```
 

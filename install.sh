@@ -14,7 +14,7 @@
 #
 # Flags:
 #   --stack NAME        one of: $(ls stacks | sed 's/.json//' | tr '\n' ' ') — or a path to a custom stack JSON
-#   --components LIST    comma list of: session_banner,skill_nudge,verification_gate,pipeline_gate,review_gate  (default: the first four; review_gate is opt-in)
+#   --components LIST    comma list of: session_banner,skill_nudge,context_warning,verification_gate,pipeline_gate,review_gate  (default: the first five; review_gate is opt-in)
 #   --local             enablement/config in .claude/settings.local.json (just you) instead of committed settings.json
 #   --no-plugin         don't touch settings — only write .claude/harness.json
 #   --ref REF           pin the marketplace to this git tag/branch (default: v<plugin.json version>)
@@ -32,7 +32,7 @@ set -euo pipefail
 
 BUNDLE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MKT_NAME="harness"; MKT_REPO="octanelabsdev/harness"   # this repo, self-referencing marketplace
-ALL_COMPONENTS=(session_banner skill_nudge verification_gate pipeline_gate)
+ALL_COMPONENTS=(session_banner skill_nudge context_warning verification_gate pipeline_gate)
 . "$BUNDLE/lib/harness_detect.sh"   # harness_detect_stack — shared with the auto-bootstrap hook
 
 # --- args ---
@@ -145,8 +145,8 @@ else
   done
   if yesno "Activate review_gate? (needs a reviewer + the blind-review skill; advanced)" n; then ON[review_gate]=true; else ON[review_gate]=false; fi
 fi
-COMPS_JSON="$(jq -n --argjson sb "${ON[session_banner]}" --argjson sn "${ON[skill_nudge]}" --argjson vg "${ON[verification_gate]}" --argjson pg "${ON[pipeline_gate]}" --argjson rg "${ON[review_gate]}" \
-  '{session_banner:$sb, skill_nudge:$sn, verification_gate:$vg, pipeline_gate:$pg, review_gate:$rg}')"
+COMPS_JSON="$(jq -n --argjson sb "${ON[session_banner]}" --argjson sn "${ON[skill_nudge]}" --argjson cw "${ON[context_warning]}" --argjson vg "${ON[verification_gate]}" --argjson pg "${ON[pipeline_gate]}" --argjson rg "${ON[review_gate]}" \
+  '{session_banner:$sb, skill_nudge:$sn, context_warning:$cw, verification_gate:$vg, pipeline_gate:$pg, review_gate:$rg}')"
 
 # --- 3. write .claude/harness.json ---
 cdir="$TARGET/.claude"; mkdir -p "$cdir"

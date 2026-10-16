@@ -2,6 +2,7 @@
   "components": {
     "session_banner": true,
     "skill_nudge": true,
+    "context_warning": true,
     "verification_gate": true,
     "pipeline_gate": false
   },
