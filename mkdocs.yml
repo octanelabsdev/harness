@@ -45,6 +45,10 @@ nav:
   - Getting started:
       - Install: install.md
       - Concepts & architecture: concepts.md
+  - Guides:
+      - Choosing a lane: guides/index.md
+      - A small fix: guides/small-fix.md
+      - A story: guides/story.md
   - Reference:
       - Components (hooks & skills): components.md
       - Configuration: configuration.md
