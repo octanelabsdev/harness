@@ -15,6 +15,7 @@ run() { local label="$1"; shift; echo "── $label ──"; "$@" || rc=1; echo
 run "shipped-path hygiene" bash tools/check_shipped_paths.sh
 run "load smoke (static)"  bash tools/smoke_load.sh --static-only
 run "hook behavior"        bash tools/test_hooks.sh
+run "installer behavior"   bash tools/test_install.sh
 run "self doctor"          bash tools/harness_doctor.sh
 
 if [ "$rc" = 0 ]; then echo "CI OK"; else echo "CI FAILED" >&2; fi

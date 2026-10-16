@@ -20,7 +20,7 @@
 #   --ref REF           pin the marketplace to this git tag/branch (default: v<plugin.json version>)
 #   --sha SHA           also record this commit sha (note: only the ref is enforced via settings→startup)
 #   --no-sha            don't auto-resolve a commit sha for a version-tag ref (ref only)
-#   --no-mcp            don't write .mcp.json even if the stack declares MCP servers
+#   --no-mcp            skip MCP wiring (.mcp.json, the user-scope server check, projects.yml registration)
 #   --mcp-download      download any missing MCP guide resources (default: just nudge)
 #   --tomes-dir PATH    set env.TOMES_DIR (EPUB bookshelf) in your config home
 #   --global            also install the generic global-CLAUDE.md into your config home
@@ -178,23 +178,20 @@ else
 fi
 
 # --- 4b. per-stack MCP servers (committed .mcp.json), if the stack declares any ---
+# A project entry shadows a same-named user-scope server, so a working global install must win.
+# Read the user config directly: `claude mcp get` health-checks (starts) the server, and reports
+# the project entry instead once one exists.
+user_cfg="${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}"; user_cfg="${user_cfg:-$HOME/.claude.json}"
+user_has_mcp() { [ -f "$user_cfg" ] && jq -e --arg n "$1" '.mcpServers // {} | has($n)' "$user_cfg" >/dev/null 2>&1; }
+project_has_mcp() { [ -f "$TARGET/.mcp.json" ] && jq -e --arg n "$1" '.mcpServers // {} | has($n)' "$TARGET/.mcp.json" >/dev/null 2>&1; }
+mcp_note=""
 mcp="$(printf '%s' "$STACK_JSON" | jq -c '.mcp // empty')"
 if [ -n "$mcp" ] && [ "$DO_MCP" = 1 ]; then
-  # A project entry shadows a same-named user-scope server, so a working global install must win.
-  # Read the user config directly: `claude mcp get` health-checks (starts) the server, and reports
-  # the project entry instead once one exists.
-  user_cfg="${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}"; user_cfg="${user_cfg:-$HOME/.claude.json}"
   skip=()
   for name in $(printf '%s' "$mcp" | jq -r 'keys[]'); do
-    if [ -f "$user_cfg" ] && jq -e --arg n "$name" '.mcpServers // {} | has($n)' "$user_cfg" >/dev/null 2>&1; then
+    if user_has_mcp "$name"; then
       echo "  mcp: '$name' already configured at user scope — not writing it to .mcp.json"
-      if [ -f "$TARGET/.mcp.json" ] && jq -e --arg n "$name" '.mcpServers // {} | has($n)' "$TARGET/.mcp.json" >/dev/null 2>&1; then
-        echo "  WARN: .mcp.json already has '$name', which overrides your user-scope server — remove it there if it fails to start"
-      fi
-      skip+=("$name")
-    elif printf '%s' "$mcp" | jq -e --arg n "$name" '.[$n].args // [] | index("rails-mcp-server")' >/dev/null \
-         && [ -f "$TARGET/Gemfile" ] && ! grep -Eq "^[[:space:]]*gem[[:space:]]+['\"]rails-mcp-server['\"]" "$TARGET/Gemfile"; then
-      echo "  mcp: '$name' needs the gem before 'bundle exec rails-mcp-server' can start — add to your Gemfile:  gem \"rails-mcp-server\", group: :development (not written)"
+      project_has_mcp "$name" && echo "  WARN: .mcp.json already has '$name', which overrides your user-scope server — remove it there if it fails to start"
       skip+=("$name")
     fi
   done
@@ -211,9 +208,68 @@ with open(p, "w") as f:
     json.dump(s, f, indent=2); f.write("\n")
 print("  wrote .mcp.json ground-truth server(s):", ", ".join(mcp.keys()))
 PY
+    mcp_note=".mcp.json written ($(printf '%s' "$mcp" | jq -r 'keys|join(", ")'))"
+  else
+    mcp_note="not written (already at user scope)"
   fi
 elif [ -n "$mcp" ]; then
   echo "  (skipped MCP wiring per --no-mcp; stack declares: $(printf '%s' "$mcp" | jq -r 'keys|join(", ")'))"
+  mcp_note="skipped (--no-mcp)"
+fi
+
+# --- 4b'. a user-scope MCP server shared by every project (rails-mcp-server), never a project entry ---
+# The server runs standalone and shells into each app's own bin/rails, so it stays out of the app
+# bundle — a bundled copy resolves to whatever version the app's locked deps allow.
+srv="$(printf '%s' "$STACK_JSON" | jq -c '.mcp_user // empty')"
+if [ -n "$srv" ] && [ "$DO_MCP" = 1 ]; then
+  name="$(printf '%s' "$srv" | jq -r '.name')"; bin="$(printf '%s' "$srv" | jq -r '.bin')"
+  args="$(printf '%s' "$srv" | jq -r '.args // [] | join(" ")')"
+  pfile="$HOME/$(printf '%s' "$srv" | jq -r '.projects_file')"
+  python3 - "$pfile" "$(basename "$TARGET")" "$TARGET" <<'PY'
+import json, os, sys
+p, key, path = sys.argv[1:]
+entries = {}
+if os.path.exists(p):
+    for line in open(p):
+        if ":" not in line or line.lstrip().startswith("#"):
+            continue
+        k, v = line.split(":", 1)
+        entries[k.strip().strip("\"'")] = v.strip().strip("\"'")
+paths = {path, os.path.realpath(path)}
+known = [k for k, v in entries.items() if v in paths or os.path.realpath(v) in paths]
+if known:
+    print(f"  mcp: project already registered in {p} as '{known[0]}'")
+elif key in entries:
+    print(f"  WARN: '{key}' in {p} points at {entries[key]} — add this project under another name: <name>: \"{path}\"")
+else:
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tail = open(p).read()[-1:] if os.path.exists(p) else ""
+    with open(p, "a") as f:
+        f.write(("\n" if tail not in ("", "\n") else "") + f"{json.dumps(key)}: {json.dumps(path)}\n")
+    print(f"  mcp: registered this project in {p} as '{key}'")
+PY
+  if user_has_mcp "$name"; then
+    echo "  mcp: using your user-scope '$name' server"
+    mcp_note="user-scope '$name' server"
+  else
+    # An absolute path to a standalone install. A version-manager shim is cwd-sensitive: launched
+    # from the app it resolves to the app's bundled copy.
+    found="$(cd "$HOME" && command -v "$bin" 2>/dev/null || true)"
+    case "$found" in */shims/*|"") found="$(cd "$HOME" && mise which "$bin" 2>/dev/null || true)";; esac
+    case "$found" in /*) case "$found" in */shims/*) found="";; esac;; *) found="";; esac
+    if [ -n "$found" ]; then
+      echo "  mcp: no user-scope '$name' server yet — add it once per machine:"
+    else
+      echo "  mcp: no user-scope '$name' server and no standalone '$bin' found — install it outside any app bundle"
+      echo "       (gem install $bin, under a current Ruby), then add it once per machine:"
+      found="/absolute/path/to/$bin"
+    fi
+    echo "         claude mcp add --scope user $name -- $found $args"
+    mcp_note="user-scope '$name' server NOT configured (see above)"
+  fi
+  project_has_mcp "$name" && echo "  WARN: .mcp.json has a '$name' entry, which overrides the user-scope server — remove it (and the $bin gem from the Gemfile)"
+elif [ -n "$srv" ]; then
+  mcp_note="skipped (--no-mcp)"
 fi
 
 # --- 4c. MCP guide resources (machine-level, shared across repos): check + nudge, or download ---
@@ -276,7 +332,7 @@ cat <<EOF
   stack       : $(printf '%s' "$STACK_JSON" | jq -r '.name')
   gates active: ${active:-none (all off)}
   plugin      : $([ "$DO_PLUGIN" = 1 ] && echo "enabled ($SCOPE scope, marketplace pinned ${PIN_REF:-UNPINNED}${PIN_SHA:+@${PIN_SHA:0:12}})" || echo "not enabled")
-  mcp         : $( [ -n "$(printf '%s' "$STACK_JSON" | jq -c '.mcp // empty')" ] && { [ "$DO_MCP" = 1 ] && { [ "$mcp" != "{}" ] && echo ".mcp.json written ($(printf '%s' "$mcp" | jq -r 'keys|join(", ")'))" || echo "not written (user-scope server or missing gem)"; } || echo "skipped (--no-mcp)"; } || echo "none for this stack")
+  mcp         : ${mcp_note:-none for this stack}
   agents      : Bring-Your-Own — put your agents in .claude/agents/ (none shipped)
   skills      : guardrails, story-writer, product-manager, bookshelf, blind-review come with the plugin
   commands    : /harness:init, /harness:agents, /harness:status, /harness:doctor
