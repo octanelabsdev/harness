@@ -16,8 +16,8 @@ else
 fi
 
 echo "components:"
-for c in session_banner skill_nudge verification_gate pipeline_gate review_gate; do
-  def=false; case "$c" in session_banner|skill_nudge) def=true;; esac
+for c in session_banner skill_nudge context_warning verification_gate pipeline_gate review_gate; do
+  def=false; case "$c" in session_banner|skill_nudge|context_warning) def=true;; esac
   printf '  %-18s %s\n' "$c" "$(hcfg ".components.\"$c\"" "$def")"
 done
 

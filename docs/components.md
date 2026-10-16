@@ -1,6 +1,6 @@
 # Components: hooks & skills
 
-The harness ships **hooks** (run by the environment) and **skills** (invoked by the model). Four
+The harness ships **hooks** (run by the environment) and **skills** (invoked by the model). Five
 hooks are toggled per project in `.claude/harness.json`; the auto-bootstrap hook has no toggle (it
 runs before any config exists). Skills come with the plugin.
 
@@ -36,6 +36,16 @@ Fires once per session at `SessionStart` with the **full** directive. (It previo
 terse reminder on every `UserPromptSubmit`; that was dropped — the per-prompt injection added up over
 a long session, and the SessionStart directive plus the auto-listed skills carry the reminder.) Shown
 unless `components.skill_nudge` is `false`.
+
+### Context warning (`context_warning`) — UserPromptSubmit hook
+Almost all token spend is cache reads, so every turn costs roughly the size of the context, and a
+long session re-reads everything it has built up on every call. On each prompt this hook reads the
+live context size from the transcript (the last main-thread call's input, cache-creation and
+cache-read tokens) and warns **once** at each step: **150K, 200K, 300K**. You see a one-line
+`systemMessage`; the model gets `additionalContext` telling it to suggest `/session-end`, `/clear`,
+`/session-start` at the next clean stopping point. A step re-arms if context drops back below it
+(after `/compact`); `/clear` starts a new session, so it starts fresh. Shown unless
+`components.context_warning` is `false`.
 
 ### Verification gate (`verification_gate`) — Stop hook
 When a turn ends with implementation code changed (per `impl_dirs`), it **runs the project's

@@ -26,7 +26,7 @@ preset="$HERE/../stacks/$stack.json"
 # All components on, warn-first: the pipeline gate warns until .claude/.pipeline-block, and a
 # .claude/.verification-warn marker (written below) keeps the verification gate in warn mode until the
 # adopter opts into blocking by removing it.
-comps='{"session_banner":true,"skill_nudge":true,"verification_gate":true,"pipeline_gate":true}'
+comps='{"session_banner":true,"skill_nudge":true,"context_warning":true,"verification_gate":true,"pipeline_gate":true}'
 
 mkdir -p "$repo/.claude"
 if ! jq -n --argjson c "$comps" --slurpfile s "$preset" \

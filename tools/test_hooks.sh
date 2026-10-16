@@ -297,5 +297,53 @@ for f in "$HERE/../skills/guardrails/references/"*.md; do
   else no "nudge lacks the $p trigger ('${TRIGGER[$p]}')"; fi
 done
 
+# ---- context_warning (UserPromptSubmit) ----
+echo "context_warning:"
+R="$(mkrepo '{"components":{}}')"
+CW_TMP="$(mktemp -d "${TMPDIR:-/tmp}/harness-cwtest.XXXXXX")"
+T="$R/transcript.jsonl"
+usage() { # usage <main-thread tokens> [sidechain tokens] -> appends assistant entries to the transcript
+  printf '{"type":"user","message":{"content":"hi"}}\n' >> "$T"
+  printf '{"type":"assistant","isSidechain":false,"message":{"usage":{"input_tokens":2,"cache_creation_input_tokens":1000,"cache_read_input_tokens":%s}}}\n' "$(($1 - 1002))" >> "$T"
+  [ -n "${2:-}" ] && printf '{"type":"assistant","isSidechain":true,"message":{"usage":{"input_tokens":%s}}}\n' "$2" >> "$T"
+  return 0
+}
+run_cw() { # run_cw [session] -> hook stdout
+  TMPDIR="$CW_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/context_warning.sh" <<EOF
+{"session_id":"${1:-s1}","transcript_path":"$T","prompt":"next"}
+EOF
+}
+
+usage 120000
+[ -z "$(run_cw)" ] && ok "user sees nothing under 150K" || no "warned under 150K"
+
+usage 160000
+OUT="$(run_cw)"
+if jq -e '.systemMessage and .hookSpecificOutput.hookEventName == "UserPromptSubmit" and .hookSpecificOutput.additionalContext' <<< "$OUT" >/dev/null 2>&1; then
+  ok "at 160K the user gets one JSON object with a systemMessage and model context"
+else no "160K warning is not a single valid JSON object: $OUT"; fi
+grep -q "160K" <<< "$OUT" && ok "warning names the current size (160K)" || no "warning lacks the size: $OUT"
+[ -z "$(run_cw)" ] && ok "the 150K step warns only once" || no "150K step warned twice"
+
+usage 210000 999999
+OUT="$(run_cw)"
+grep -q "crossed 200K" <<< "$OUT" && ok "crossing 200K warns again, ignoring a larger subagent call" || no "200K step missing or sidechain counted: $OUT"
+
+usage 90000
+[ -z "$(run_cw)" ] && ok "after /compact drops context, no warning" || no "warned after context dropped"
+usage 155000
+grep -q "crossed 150K" <<< "$(run_cw)" && ok "the 150K step re-arms after context drops" || no "150K step did not re-arm"
+
+usage 310000
+grep -q "crossed 300K" <<< "$(run_cw other)" && ok "a new session (after /clear) gets its own steps" || no "new session did not warn at 300K"
+
+printf '{"components":{"context_warning":false}}' > "$R/.claude/harness.json"
+[ -z "$(run_cw fresh)" ] && ok "components.context_warning:false silences it" || no "toggle off still warned"
+printf '{"components":{}}' > "$R/.claude/harness.json"
+
+OUT="$(TMPDIR="$CW_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/context_warning.sh" <<< '{"session_id":"x","transcript_path":"/nonexistent"}')"; rc=$?
+[ "$rc" = 0 ] && [ -z "$OUT" ] && ok "a missing transcript exits 0 silently" || no "missing transcript: rc=$rc out=$OUT"
+rm -rf "$R" "$CW_TMP"
+
 echo
 if [ "$fail" = 0 ]; then echo "OK: hook tests passed ($pass)."; exit 0; else echo "FAIL: $fail hook test(s), $pass passed." >&2; exit 1; fi

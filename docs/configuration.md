@@ -11,6 +11,7 @@ enforcing gates stay inert.
   "components": {
     "session_banner":    true,   // SessionStart status banner (informational; default shown)
     "skill_nudge":       true,   // SessionStart nudge to invoke skills (default on)
+    "context_warning":   true,   // UserPromptSubmit warning at 150K/200K/300K tokens of context (default on)
     "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
     "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
     "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
@@ -40,8 +41,8 @@ enforcing gates stay inert.
 - **`test_command`** — the canonical check the verification gate **runs** on a Stop with impl changes;
   a non-zero exit blocks (see [components.md](components.md)). If empty, the gate only runs its
   advisory operator-test check.
-- **`components`** — the toggleable hooks honor these. `session_banner` and `skill_nudge` default to
-  **on** unless set to `false`; the gates (`verification_gate`, `pipeline_gate`, `review_gate`) default
+- **`components`** — the toggleable hooks honor these. `session_banner`, `skill_nudge` and `context_warning`
+  default to **on** unless set to `false`; the gates (`verification_gate`, `pipeline_gate`, `review_gate`) default
   **off** when unconfigured. When on, the pipeline gate runs in **warn** mode, and the verification gate
   **blocks** on a `test_command` failure (opt down with `.claude/.verification-warn`). `review_gate`
   (also part of the verification-gate Stop hook, opt-in) additionally requires a **verified blind-review
