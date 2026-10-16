@@ -28,4 +28,16 @@
          <loc>https://harness.octanelabs.dev/troubleshooting/</loc>
          <lastmod>2026-10-16</lastmod>
     </url>
+    <url>
+         <loc>https://harness.octanelabs.dev/guides/</loc>
+         <lastmod>2026-10-16</lastmod>
+    </url>
+    <url>
+         <loc>https://harness.octanelabs.dev/guides/small-fix/</loc>
+         <lastmod>2026-10-16</lastmod>
+    </url>
+    <url>
+         <loc>https://harness.octanelabs.dev/guides/story/</loc>
+         <lastmod>2026-10-16</lastmod>
+    </url>
 </urlset>
