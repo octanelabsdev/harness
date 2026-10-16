@@ -1052,9 +1052,13 @@ mechanisms — both wired by the installer, neither hard-coded to a <code>$HOME<
 <ol>
 <li>
 <p><strong>A ground-truth MCP server</strong> (what the app <em>is</em> — schema/routes/live code). A stack profile's
-   <code>mcp</code> block is written to a committed <code>.mcp.json</code>. The rails preset ships
-   <code>rails: bundle exec rails-mcp-server</code> (add the <code>rails-mcp-server</code> gem to your Gemfile dev group so
-   <code>bundle exec</code> resolves). Instruct your agents to query it before inferring structure from partial reads.</p>
+   <code>mcp</code> block is written to a committed <code>.mcp.json</code>. The rails preset instead uses one <strong>user-scope</strong>
+   <code>rails</code> server (<code>mcp_user</code>) shared by every app: rails-mcp-server runs standalone and shells into
+   each app's own <code>bin/rails</code>, so it never goes in the app's Gemfile. The installer registers the app in
+   <code>~/.config/rails-mcp/projects.yml</code> and, if you don't have the server yet, prints the one-time
+   <code>claude mcp add --scope user rails -- /absolute/path/to/rails-mcp-server --mode stdio</code> line.
+   <code>/harness:doctor</code> flags a missing server, a missing registration, or a project <code>.mcp.json</code> entry
+   that overrides it. Instruct your agents to query it before inferring structure from partial reads.</p>
 </li>
 <li>
 <p><strong>Guide/reference bookshelves</strong> (the <em>how/why</em>):</p>

@@ -880,10 +880,12 @@ stronger in combination.</p>
      Definition-of-Ready story (or an explicit small-fix escape hatch).</p>
 </li>
 <li>
-<p><strong>Guardrails</strong> (a skill) — six short, event-triggered playbooks the model reads the moment a
+<p><strong>Guardrails</strong> (a skill) — eight short, event-triggered playbooks the model reads the moment a
    known failure pattern is about to happen: <code>CODE</code> (before the first edit), <code>DEBUG</code> (a failed
    command), <code>VERIFY</code> (before claiming done), <code>TRAPS</code> (language footguns), <code>RUNTIME</code> (asserting a
-   path is live/costly), <code>MECHANISM</code> (concluding code is wrong or planning on external behavior).</p>
+   path is live/costly), <code>MECHANISM</code> (concluding code is wrong or planning on external behavior),
+   <code>PRECEDENT</code> (following or extending existing code — classify its history, check it against current practice), <code>SCOPE</code>
+   (planning or adding beyond the ask — build the smallest change, propose the extras).</p>
 </li>
 <li>
 <p><strong>The PM pipeline</strong> (two skills + a lint) — <code>story-writer</code> turns a requirement into a

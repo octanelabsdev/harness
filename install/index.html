@@ -1124,7 +1124,7 @@ bootstraps itself the first time you open a session in an unconfigured project:<
 </tr>
 <tr>
 <td><code>/harness:update [--apply]</code></td>
-<td>Checks whether a newer release tag exists (read-only by default). With <code>--apply</code>, bumps this project's pinned <code>ref</code> to the latest tag; then run <code>/reload-plugins</code> to activate. See <a href="#updating">Updating</a>.</td>
+<td>Checks whether a newer release tag exists (read-only by default). With <code>--apply</code>, bumps this project's pinned <code>ref</code> to the latest tag; then run <code>/plugin marketplace update harness</code> and <code>/reload-plugins</code> to activate. See <a href="#updating">Updating</a>.</td>
 </tr>
 </tbody>
 </table>
@@ -1134,15 +1134,19 @@ bootstraps itself the first time you open a session in an unconfigured project:<
 <p><strong>The pinned plugin version.</strong> The harness is a <em>third-party</em> marketplace, so Claude Code does <strong>not</strong>
 auto-update a <code>ref</code>-pinned marketplace — that's the point (a moving ref would let any push to the harness
 repo run on every machine at next session). Bumping from, say, <code>v0.2.0</code> to <code>v0.3.0</code> means changing the
-pinned <code>ref</code> in the <code>settings.json</code> that declares the marketplace. How it actually works (verified on CLI
-2.1.283): the <strong>settings source is authoritative</strong>; the machine cache (<code>~/.claude/plugins/known_marketplaces.json</code>)
-is reconciled <em>from</em> settings at session startup or on <code>/reload-plugins</code>. So the update is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>/harness:update            # check: installed vs latest release tag (read-only)
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>/harness:update --apply     # bump the pinned ref (+sha) in settings to the latest tag
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>/reload-plugins            # activate it (or restart Claude Code)
+pinned <code>ref</code> in the <code>settings.json</code> that declares the marketplace. The <strong>settings source is
+authoritative</strong> — but <code>/reload-plugins</code> alone does <strong>not</strong> re-fetch the marketplace clone at the new tag;
+the old version keeps loading until <code>/plugin marketplace update</code> pulls it (observed moving 0.2.1 → 0.2.2).
+So the update is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>/harness:update                      # check: installed vs latest release tag (read-only)
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>/harness:update --apply              # bump the pinned ref (+sha) in settings to the latest tag
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>/plugin marketplace update harness   # fetch the marketplace at the newly pinned tag
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>/reload-plugins                      # load it
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>/harness:update                      # confirm: should report up to date
 </code></pre></div>
-<p><code>/plugin marketplace update</code> and <code>claude plugin update</code> only refresh the <em>same</em> ref — they do <strong>not</strong>
-cross tags. For a <strong>fleet</strong>, re-run the installer instead (it re-pins each repo's committed settings):</p>
+<p><code>/plugin marketplace update</code> fetches whatever <code>ref</code> settings currently pins — on its own it does <strong>not</strong>
+move you to a newer tag; the <code>--apply</code> bump is what crosses tags. For a <strong>fleet</strong>, re-run the installer
+instead (it re-pins each repo's committed settings):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>~/harness/install.sh<span class="w"> </span>--ref<span class="w"> </span>v0.3.0<span class="w"> </span>--yes<span class="w"> </span>.<span class="w">     </span><span class="c1"># rewrites settings.json to the new tag (+ its sha)</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">for</span><span class="w"> </span>r<span class="w"> </span><span class="k">in</span><span class="w"> </span>~/dev/*<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>~/harness/install.sh<span class="w"> </span>--ref<span class="w"> </span>v0.3.0<span class="w"> </span>--yes<span class="w"> </span><span class="s2">"</span><span class="nv">$r</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
 </code></pre></div>

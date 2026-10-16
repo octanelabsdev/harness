@@ -1077,7 +1077,13 @@ requires a <strong>verified blind-review artifact</strong> for the current diff:
 <code>.claude/.review/current.json</code>, and <code>tools/review_verify.sh</code> refuses it unless its <code>diff_sha</code> matches
 the current tree and every finding cites a <code>file:line</code> actually in the diff (so a hand-written green
 result can't satisfy it). <code>verdict: changes-requested</code> or a missing/stale artifact <strong>blocks</strong>;
-<code>.claude/.verification-warn</code> downgrades it. This replaces the old <code>.claude/.last-review</code> check, which
+<code>.claude/.verification-warn</code> downgrades it.</p>
+<p>The artifact also records <code>base</code>, the full sha of <code>HEAD</code> at review time. With it, the checker renders
+the current tree against <code>base</code> rather than against the uncommitted diff, so committing the reviewed
+work (in one commit or several) keeps the artifact fresh, while any edit after the review, committed
+or not, makes it stale. Findings are checked against the same base-relative diff, so they still
+validate after the commit. An artifact without a full-sha <code>base</code> is checked the old way: it is fresh
+only while the reviewed changes are uncommitted. This replaces the old <code>.claude/.last-review</code> check, which
 compared a model-written marker to HEAD and couldn't tell a real review from a claimed one.</p>
 <h3 id="pipeline-gate-pipeline_gate-pretooluse-hook">Pipeline gate (<code>pipeline_gate</code>) — PreToolUse hook<a class="headerlink" href="#pipeline-gate-pipeline_gate-pretooluse-hook" title="Permanent link">&para;</a></h3>
 <p>Before an <code>Edit</code>/<code>Write</code> to the implementation surface (<code>impl_dirs</code>), it requires either:
@@ -1097,7 +1103,7 @@ instructions only take effect when it's invoked (via the <code>Skill</code> tool
 The <code>skill_nudge</code> hook (above) is what makes the model reach for the matching skill on its own instead
 of waiting to be asked.</p>
 <h3 id="guardrails"><code>guardrails</code><a class="headerlink" href="#guardrails" title="Permanent link">&para;</a></h3>
-<p>A routing table plus six reference playbooks. Read the one whose trigger just fired; cite a fired
+<p>A routing table plus eight reference playbooks. Read the one whose trigger just fired; cite a fired
 item's ID with one line of evidence.</p>
 <table>
 <thead>
@@ -1130,6 +1136,14 @@ item's ID with one line of evidence.</p>
 <tr>
 <td>concluding code is dead/wrong, or planning on external-system behavior</td>
 <td>MECHANISM</td>
+</tr>
+<tr>
+<td>naming existing code as the pattern to follow, or adding new behavior to existing code in its style</td>
+<td>PRECEDENT</td>
+</tr>
+<tr>
+<td>planning/delegating, adding an abstraction/option/dependency/file, or a diff wider than the ask</td>
+<td>SCOPE</td>
 </tr>
 </tbody>
 </table>

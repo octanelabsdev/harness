@@ -782,6 +782,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The rails MCP server won't connect (-32602 Unsupported protocol version)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#validate-a-change-to-the-harness-itself" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -956,6 +967,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The rails MCP server won't connect (-32602 Unsupported protocol version)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#validate-a-change-to-the-harness-itself" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1037,6 +1059,32 @@ Re-link them (see <a href="../agents/">agents.md</a>).</p>
 <li>Verification gate: edit <code>hooks/verification_gate.sh</code> per the note at its tail (swap <code>exit 0</code> for
   <code>exit 2</code> when warnings exist). Promote only after the warn phase is quiet on false positives.</li>
 </ul>
+<h2 id="the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version">The <code>rails</code> MCP server won't connect (<code>-32602 Unsupported protocol version</code>)<a class="headerlink" href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" title="Permanent link">&para;</a></h2>
+<p>Installers before v0.2.7 wrote a project <code>.mcp.json</code> running <code>bundle exec rails-mcp-server</code> and
+suggested <code>gem "rails-mcp-server"</code> in the Gemfile. A project entry overrides your user-scope <code>rails</code>
+server, and on a <strong>legacy Rails app</strong> (e.g. Rails 7.0 / rack 2.2) bundler can only resolve rails-mcp-server
+<strong>1.0.1</strong>, because every protocol-compatible release (1.2.0+ switched to <code>fast-mcp</code>; 1.6.1/2.0.0 need
+newer <code>activesupport</code>) conflicts with the app's locked deps. 1.0.1 → <code>mcp-rb 0.3.2</code> speaks <strong>only</strong> MCP
+protocol <code>2024-11-05</code> and <em>hard-rejects</em> the newer version Claude Code offers instead of negotiating
+down — so the handshake dies with <code>-32602</code>.</p>
+<p><strong>Don't</strong> try the mise shim (<code>~/.local/share/mise/shims/rails-mcp-server</code>) as a fix: it's
+cwd-sensitive and, launched from the project dir, resolves to the same broken in-bundle 1.0.1 (its
+<code>version</code> output from <code>$HOME</code> is misleading).</p>
+<p><strong>Fix — one standalone server at user scope, by absolute path.</strong> rails-mcp-server is a standalone
+tool: it reads <code>~/.config/rails-mcp/projects.yml</code> and introspects by shelling into the target app's own
+<code>bin/rails</code>, so it never needs to be in the app bundle.</p>
+<ol>
+<li>Install a current version outside any bundle (<code>gem install rails-mcp-server</code> under a modern Ruby,
+   or via mise global), then add it once per machine:
+   <code>claude mcp add --scope user rails -- /absolute/path/to/rails-mcp-server --mode stdio</code>
+   (re-running the installer prints this line with the path filled in).</li>
+<li>In the app: delete the <code>rails</code> entry from <code>.mcp.json</code> (the whole file if it was the only one) and
+   <code>gem "rails-mcp-server"</code> from the Gemfile, then <code>bundle install</code>.</li>
+<li>Re-run the installer (or add <code>&lt;name&gt;: "/path/to/app"</code> to <code>projects.yml</code> yourself) and restart
+   Claude Code. <code>/harness:doctor</code> should report the user-scope server and the registration, with no
+   override warning.</li>
+</ol>
+<p>2.0.0 (fast-mcp) negotiates the handshake and Claude Code connects.</p>
 <h2 id="validate-a-change-to-the-harness-itself">Validate a change to the harness itself<a class="headerlink" href="#validate-a-change-to-the-harness-itself" title="Permanent link">&para;</a></h2>
 <p><div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>claude<span class="w"> </span>plugin<span class="w"> </span>validate<span class="w"> </span>.<span class="w"> </span>--strict
 </code></pre></div>
