@@ -1020,23 +1020,24 @@ enforcing gates stay inert.</p>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  "components": {
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    "session_banner":    true,   // SessionStart status banner (informational; default shown)
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    "skill_nudge":       true,   // SessionStart nudge to invoke skills (default on)
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  },
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  "stack": {
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    "name": "rails",                            // label, shown in the banner
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    "impl_dirs":  ["app", "lib", "db/migrate"], // the "implementation surface" the gates care about
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    "ui_dirs":    ["app/views", "app/controllers"], // subset whose change should ship an operator test
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    "test_dir":   "test",                       // where unit/integration tests live
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    "test_command": "bin/rails test",           // how to run the suite ("" = unknown)
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    "agents_bundle": {                          // optional: default agent bundle for /harness:agents
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>      "repo": "octanelabsdev/rails-agents",     //   owner/name slug or git URL
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>      "glob": ["rails-*.md", "dhh-code-reviewer.md"] // which files in the bundle are agents
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    }
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>  }
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>}
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    "context_warning":   true,   // UserPromptSubmit warning at 150K/200K/300K tokens of context (default on)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  },
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  "stack": {
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    "name": "rails",                            // label, shown in the banner
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    "impl_dirs":  ["app", "lib", "db/migrate"], // the "implementation surface" the gates care about
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    "ui_dirs":    ["app/views", "app/controllers"], // subset whose change should ship an operator test
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    "test_dir":   "test",                       // where unit/integration tests live
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    "test_command": "bin/rails test",           // how to run the suite ("" = unknown)
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    "agents_bundle": {                          // optional: default agent bundle for /harness:agents
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>      "repo": "octanelabsdev/rails-agents",     //   owner/name slug or git URL
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>      "glob": ["rails-*.md", "dhh-code-reviewer.md"] // which files in the bundle are agents
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    }
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>  }
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>}
 </code></pre></div>
 <h3 id="field-semantics">Field semantics<a class="headerlink" href="#field-semantics" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1049,8 +1050,8 @@ enforcing gates stay inert.</p>
 <li><strong><code>test_command</code></strong> — the canonical check the verification gate <strong>runs</strong> on a Stop with impl changes;
   a non-zero exit blocks (see <a href="../components/">components.md</a>). If empty, the gate only runs its
   advisory operator-test check.</li>
-<li><strong><code>components</code></strong> — the toggleable hooks honor these. <code>session_banner</code> and <code>skill_nudge</code> default to
-  <strong>on</strong> unless set to <code>false</code>; the gates (<code>verification_gate</code>, <code>pipeline_gate</code>, <code>review_gate</code>) default
+<li><strong><code>components</code></strong> — the toggleable hooks honor these. <code>session_banner</code>, <code>skill_nudge</code> and <code>context_warning</code>
+  default to <strong>on</strong> unless set to <code>false</code>; the gates (<code>verification_gate</code>, <code>pipeline_gate</code>, <code>review_gate</code>) default
   <strong>off</strong> when unconfigured. When on, the pipeline gate runs in <strong>warn</strong> mode, and the verification gate
   <strong>blocks</strong> on a <code>test_command</code> failure (opt down with <code>.claude/.verification-warn</code>). <code>review_gate</code>
   (also part of the verification-gate Stop hook, opt-in) additionally requires a <strong>verified blind-review

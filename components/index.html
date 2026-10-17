@@ -708,6 +708,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#context-warning-context_warning-userpromptsubmit-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context warning (context_warning) — UserPromptSubmit hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#verification-gate-verification_gate-stop-hook" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1048,6 +1059,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#context-warning-context_warning-userpromptsubmit-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context warning (context_warning) — UserPromptSubmit hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#verification-gate-verification_gate-stop-hook" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1178,7 +1200,7 @@
 
 
 <h1 id="components-hooks-skills">Components: hooks &amp; skills<a class="headerlink" href="#components-hooks-skills" title="Permanent link">&para;</a></h1>
-<p>The harness ships <strong>hooks</strong> (run by the environment) and <strong>skills</strong> (invoked by the model). Four
+<p>The harness ships <strong>hooks</strong> (run by the environment) and <strong>skills</strong> (invoked by the model). Five
 hooks are toggled per project in <code>.claude/harness.json</code>; the auto-bootstrap hook has no toggle (it
 runs before any config exists). Skills come with the plugin.</p>
 <h2 id="hooks">Hooks<a class="headerlink" href="#hooks" title="Permanent link">&para;</a></h2>
@@ -1209,6 +1231,15 @@ model behavior only; a hook cannot call a skill itself.</p>
 terse reminder on every <code>UserPromptSubmit</code>; that was dropped — the per-prompt injection added up over
 a long session, and the SessionStart directive plus the auto-listed skills carry the reminder.) Shown
 unless <code>components.skill_nudge</code> is <code>false</code>.</p>
+<h3 id="context-warning-context_warning-userpromptsubmit-hook">Context warning (<code>context_warning</code>) — UserPromptSubmit hook<a class="headerlink" href="#context-warning-context_warning-userpromptsubmit-hook" title="Permanent link">&para;</a></h3>
+<p>Almost all token spend is cache reads, so every turn costs roughly the size of the context, and a
+long session re-reads everything it has built up on every call. On each prompt this hook reads the
+live context size from the transcript (the last main-thread call's input, cache-creation and
+cache-read tokens) and warns <strong>once</strong> at each step: <strong>150K, 200K, 300K</strong>. You see a one-line
+<code>systemMessage</code>; the model gets <code>additionalContext</code> telling it to suggest <code>/session-end</code>, <code>/clear</code>,
+<code>/session-start</code> at the next clean stopping point. A step re-arms if context drops back below it
+(after <code>/compact</code>); <code>/clear</code> starts a new session, so it starts fresh. Shown unless
+<code>components.context_warning</code> is <code>false</code>.</p>
 <h3 id="verification-gate-verification_gate-stop-hook">Verification gate (<code>verification_gate</code>) — Stop hook<a class="headerlink" href="#verification-gate-verification_gate-stop-hook" title="Permanent link">&para;</a></h3>
 <p>When a turn ends with implementation code changed (per <code>impl_dirs</code>), it <strong>runs the project's
 <code>test_command</code></strong> and <strong>blocks</strong> (<code>exit 2</code>) if it fails — a red test is a fact, not a judgment, so it
