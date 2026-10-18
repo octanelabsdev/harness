@@ -26,7 +26,7 @@ the moment its trigger fires — do not wait for the operator to type `/harness:
   done/passing/complete or committing, or when touching a language trap.
 - **story-writer** — when creating or refining a work item / ticket / story before implementation.
 - **product-manager** — when deciding what to work on next, triaging a backlog, or routing ready work.
-The `skill_nudge` hook reminds you of this each turn; the reminder is the floor, not the trigger —
+The `skill_nudge` hook reminds you of this at session start; the reminder is the floor, not the trigger —
 reach for the skill as soon as the work matches it.
 
 ## Sub-agent delegation (Bring-Your-Own agents)
