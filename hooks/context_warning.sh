@@ -4,8 +4,12 @@
 # Nearly all token spend is cache reads, so every call costs roughly the size of the context. A long
 # session re-reads everything it has accumulated on every turn. This hook reads the live context size
 # from the transcript (the last main-thread assistant call's input + cache_creation + cache_read
-# tokens) and warns once at each step: 150K, 200K, 300K. The operator sees a systemMessage; the model
-# gets additionalContext so it can suggest /session-end at a clean stopping point.
+# tokens) and warns once at each step: 75%, 85% and 95% of the context window. The operator sees a
+# systemMessage; the model gets additionalContext so it can mention a clean break when one comes up.
+#
+# The window, first match wins: $HARNESS_CONTEXT_WINDOW, then context_warning.window in
+# .claude/harness.json, then 1M if the transcript shows a `[1m]` model or any call over 200K. Neither
+# the hook input nor the transcript names the window otherwise, so with no signal it assumes 200K.
 #
 # Steps re-arm when context drops back below them (after /compact). /clear starts a new session id,
 # so it starts fresh. Informational, so it defaults ON — set components.context_warning to false in
@@ -21,16 +25,27 @@ session="$(jq -r '.session_id // empty' <<< "$input" 2>/dev/null | tr -cd 'A-Za-
 [ -n "$transcript" ] && [ -f "$transcript" ] && [ -n "$session" ] || exit 0
 
 # The last usage is near the end; tail keeps this cheap on multi-MB transcripts.
-tokens="$(tail -n 500 "$transcript" | jq -rs '
-  [ .[] | select(.type == "assistant" and (.isSidechain | not) and .message.usage != null) ]
-  | last | .message.usage
-  | if . == null then empty
-    else (.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0) end
-' 2>/dev/null)"
+read -r tokens peak one_m < <(tail -n 500 "$transcript" | jq -rs '
+  [ .[] | select(.type == "assistant" and (.isSidechain | not) and .message.usage != null) ] as $calls
+  | [ $calls[] | .message.usage
+      | (.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0) ] as $sizes
+  | if ($sizes | length) == 0 then empty
+    else "\($sizes[-1]) \($sizes | max) \([ $calls[] | .requestedModel // "" | endswith("[1m]") ] | any)" end
+' 2>/dev/null)
 case "$tokens" in ''|*[!0-9]*) exit 0 ;; esac
 
+window="${HARNESS_CONTEXT_WINDOW:-$(hcfg '.context_warning.window?' '')}"
+# Leading zeros read as octal in $(( )) and over 9 digits risks overflow, so both count as unset.
+[[ "$window" =~ ^[1-9][0-9]{0,8}$ ]] || window=""
+if [ -z "$window" ]; then
+  if [ "$one_m" = "true" ] || [ "$peak" -gt 200000 ]; then window=1000000
+  else window=200000; assumed=1; fi
+fi
+
 level=0
-for t in 150000 200000 300000; do [ "$tokens" -ge "$t" ] && level=$t; done
+for t in $((window * 75 / 100)) $((window * 85 / 100)) $((window * 95 / 100)); do
+  [ "$tokens" -ge "$t" ] && level=$t
+done
 
 state_dir="${TMPDIR:-/tmp}/harness-context-warning"
 state="$state_dir/$session"
@@ -44,12 +59,15 @@ fi
 printf '%s' "$level" > "$state"
 
 k=$((tokens / 1000))
-case "$level" in
-  150000) user="Context is at ${k}K tokens. Every turn re-reads all of it. Wrap this task soon: /session-end, then /clear and /session-start." ;;
-  200000) user="Context is at ${k}K tokens. Past 200K is where most token spend goes. Finish the current step, then /session-end, /clear, /session-start." ;;
-  *)      user="Context is at ${k}K tokens. This session is expensive on every turn. Stop at the next safe point: /session-end, /clear, /session-start." ;;
-esac
-model="HARNESS CONTEXT: this session's context is about ${k}K tokens (crossed $((level / 1000))K). At the next clean stopping point, not mid-edit, tell the user and suggest /session-end, then /clear and /session-start. Don't start new unrelated work in this session."
+if [ -n "${assumed:-}" ]; then
+  size="${k}K tokens"
+  hint=" (Window size unknown, assumed 200K: set HARNESS_CONTEXT_WINDOW or context_warning.window to scale these steps.)"
+else
+  if [ $((window % 1000000)) -eq 0 ]; then wl="$((window / 1000000))M"; else wl="$((window / 1000))K"; fi
+  size="${k}K of a ${wl} window ($((tokens * 100 / window))%)"
+fi
+user="Context is at ${size}. Every turn re-reads all of it, so a clean break at a natural stopping point (/session-end, /clear, /session-start) keeps turns cheaper.${hint:-}"
+model="HARNESS CONTEXT: this session's context is about ${size} (crossed $((level / 1000))K). This is information, not an instruction to stop: carry on with the current task. If a natural stopping point comes up, you may mention to the user that /session-end, then /clear and /session-start, would start a fresh, cheaper context."
 
 jq -nc --arg u "$user" --arg m "$model" \
   '{systemMessage: $u, hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $m}}'

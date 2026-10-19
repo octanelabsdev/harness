@@ -47,7 +47,8 @@ The harness ships **zero agents**. Bring your own — or use an example bundle l
 - **Hooks** (`hooks/`) — `harness_bootstrap` (auto-writes `.claude/harness.json` on first session),
   `session_start_banner`, `skill_nudge`, `context_warning`, `verification_gate`, `pipeline_gate`. Portable
   (`${CLAUDE_PLUGIN_ROOT}`), config-driven (the three informational hooks default on, and
-  `context_warning` warns once each at 150K, 200K and 300K tokens of session context; the enforcing
+  `context_warning` warns once each at 75%, 85% and 95% of the context window, assuming a 200K window
+  (150K, 170K, 190K) when it can't tell; the enforcing
   gates default off — when on, the pipeline gate warns, the verification gate blocks on a failing
   `test_command`, and its opt-in `review_gate` blocks unless a verified blind-review artifact exists).
 - **Commands** (`commands/`) — `/harness:init` ((re)configure a project via the installer),

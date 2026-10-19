@@ -41,11 +41,26 @@ unless `components.skill_nudge` is `false`.
 Almost all token spend is cache reads, so every turn costs roughly the size of the context, and a
 long session re-reads everything it has built up on every call. On each prompt this hook reads the
 live context size from the transcript (the last main-thread call's input, cache-creation and
-cache-read tokens) and warns **once** at each step: **150K, 200K, 300K**. You see a one-line
-`systemMessage`; the model gets `additionalContext` telling it to suggest `/session-end`, `/clear`,
-`/session-start` at the next clean stopping point. A step re-arms if context drops back below it
-(after `/compact`); `/clear` starts a new session, so it starts fresh. Shown unless
-`components.context_warning` is `false`.
+cache-read tokens) and warns **once** at each step: **75%, 85% and 95% of the context window**
+(150K/170K/190K on a 200K window, 750K/850K/950K on 1M). You see a one-line `systemMessage` with the
+share of the window used; the model gets `additionalContext` saying this is information, not an
+instruction to stop, and that it may suggest `/session-end`, `/clear`, `/session-start` at a natural
+break. A step re-arms if context drops back below it (after `/compact`); `/clear` starts a new
+session, so it starts fresh. Shown unless `components.context_warning` is `false`.
+
+Neither the hook input nor the transcript states the window, so the hook takes the first of:
+`$HARNESS_CONTEXT_WINDOW`, `context_warning.window` in `.claude/harness.json`, then **1M** if the
+transcript shows an explicitly chosen `[1m]` model (`requestedModel`) or any call over 200K. With none
+of those it **assumes 200K** and adds a one-line hint on how to set the window. A default-alias 1M
+session therefore still gets the 150K warning once, until it passes 200K or you set the window. Set it
+per user with `HARNESS_CONTEXT_WINDOW` (for example in `settings.json` `env`); a project file applies
+to the whole team, whatever models they run. A window value must be a plain positive integer of at most
+nine digits; anything else, including leading zeros, is ignored.
+
+- Inference reads only the transcript tail, so after `/compact` a default-alias 1M session can drop back
+  to the assumed 200K window; `HARNESS_CONTEXT_WINDOW` avoids this.
+- A non-empty but invalid `HARNESS_CONTEXT_WINDOW` (non-numeric, say) still skips the
+  `context_warning.window` lookup, so the hook falls through to inference.
 
 ### Verification gate (`verification_gate`) — Stop hook
 When a turn ends with implementation code changed (per `impl_dirs`), it **runs the project's
