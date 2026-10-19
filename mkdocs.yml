@@ -48,6 +48,11 @@ nav:
       - Working with the harness: workflow.md
       - Cycles: cycles.md
       - Examples: examples.md
+  - Guides:
+      - Choosing a lane: guides/index.md
+      - A small fix: guides/small-fix.md
+      - A story: guides/story.md
+      - A client project as a cycle: guides/client-cycle.md
   - Reference:
       - Components (hooks & skills): components.md
       - Configuration: configuration.md
