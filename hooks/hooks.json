@@ -20,7 +20,7 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/verification_gate.sh\"" }
+          { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/verification_gate.sh\"", "timeout": 1800 }
         ]
       }
     ],

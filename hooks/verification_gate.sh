@@ -54,10 +54,36 @@ if [ -n "$ui" ] && [ -n "$op_test" ] && [ -z "$op_changed" ]; then
 fi
 
 # Layer 0 — run the canonical test_command and BLOCK on failure (deterministic, unfakeable).
+# run_tests.sh serializes runs across sessions/worktrees (a shared test DB makes concurrent suites fail
+# each other). Its limits must stay under the Stop hook's timeout in hooks.json: a hook killed by Claude
+# Code renders no decision, i.e. a silent pass.
 if [ -n "$test_cmd" ]; then
-  if ! test_out="$(bash -c "$test_cmd" 2>&1)"; then
+  test_timeout_sec="$(hcfg '.stack.test_timeout_sec' '600')"
+  lock_wait_sec="$(hcfg '.stack.test_lock_wait_sec' '600')"
+  # Fit wait + run inside the hook's own timeout (60s margin for the kill grace and the review layer):
+  # the lock wait gives way first, then the run itself. Non-integers fall through to
+  # run_tests.sh, which rejects them as a config error.
+  hook_timeout_sec="$(jq -r '[.hooks.Stop[].hooks[] | select(.command | test("verification_gate")) | .timeout][0] // 600' "$HERE/hooks.json" 2>/dev/null || echo 600)"
+  budget_sec=$(( hook_timeout_sec - 60 ))
+  case "$test_timeout_sec$lock_wait_sec" in
+    *[!0-9]*) ;;
+    *)
+      test_timeout_sec=$((10#$test_timeout_sec)); lock_wait_sec=$((10#$lock_wait_sec))   # "0900" -> 900, not octal
+      [ "$test_timeout_sec" -gt "$budget_sec" ] && test_timeout_sec="$budget_sec"
+      [ $(( test_timeout_sec + lock_wait_sec )) -gt "$budget_sec" ] && lock_wait_sec=$(( budget_sec - test_timeout_sec ))
+      ;;
+  esac
+  trc=0
+  test_out="$(bash "$HERE/../tools/run_tests.sh" --timeout "$test_timeout_sec" --wait "$lock_wait_sec" -- "$test_cmd" 2>&1)" || trc=$?
+  if [ "$trc" != 0 ]; then
+    case "$trc" in
+      2) verdict="SETUP ERROR — tests did NOT run (bad stack.test_timeout_sec / stack.test_lock_wait_sec, or the test lock can't be created; details below)" ;;
+      3) verdict="UNVERIFIED — another test run held the lock past ${lock_wait_sec}s; tests did NOT run" ;;
+      4) verdict="UNVERIFIED — test_command exceeded ${test_timeout_sec}s (stack.test_timeout_sec, capped to fit the ${hook_timeout_sec}s hook timeout) and was killed" ;;
+      *) verdict="test_command failed" ;;
+    esac
     {
-      echo "VERIFICATION GATE — test_command failed: $test_cmd"
+      echo "VERIFICATION GATE — $verdict: $test_cmd"
       printf '%s\n' "$test_out" | tail -n 40
       [ -n "$op_note" ] && echo "$op_note"
     } >&2

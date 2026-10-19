@@ -24,6 +24,8 @@ enforcing gates stay inert.
     "test_dir":   "test",                       // where unit/integration tests live
     "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
     "test_command": "bin/rails test",           // how to run the suite ("" = unknown)
+    "test_timeout_sec": 600,                    // optional: kill a gate test run after this long
+    "test_lock_wait_sec": 600,                  // optional: how long to wait for another session's run
     "agents_bundle": {                          // optional: default agent bundle for /harness:agents
       "repo": "octanelabsdev/rails-agents",     //   owner/name slug or git URL
       "glob": ["rails-*.md", "dhh-code-reviewer.md"] // which files in the bundle are agents
@@ -42,6 +44,11 @@ enforcing gates stay inert.
 - **`test_command`** — the canonical check the verification gate **runs** on a Stop with impl changes;
   a non-zero exit blocks (see [components.md](components.md)). If empty, the gate only runs its
   advisory operator-test check.
+- **`test_timeout_sec`** / **`test_lock_wait_sec`** (optional, whole seconds, default 600 each) — the
+  verification gate runs `test_command` under a repo-wide lock so concurrent sessions don't share the
+  test database mid-run. The first kills a run that takes longer; the second is how long to wait for
+  another session's run before blocking as UNVERIFIED. Both are trimmed to fit the Stop hook's 1800s
+  timeout (see [components.md](components.md)).
 - **`components`** — the toggleable hooks honor these. `session_banner`, `skill_nudge` and `context_warning`
   default to **on** unless set to `false`; the gates (`verification_gate`, `pipeline_gate`, `review_gate`) default
   **off** when unconfigured. When on, the pipeline gate runs in **warn** mode, and the verification gate
