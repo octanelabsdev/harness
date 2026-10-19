@@ -1264,6 +1264,14 @@ without a change under <code>operator_test_dir</code> — i.e. no operator-journ
 <p>A <code>test_command</code> failure <strong>blocks by default</strong>. Rolling out gradually? <code>touch .claude/.verification-warn</code>
 to downgrade to warn-only (the failure is surfaced but doesn't block). A Stop hook's <code>exit 2</code> prevents
 the stop and continues so Claude addresses the gap.</p>
+<p><strong>One test run at a time.</strong> The gate runs <code>test_command</code> through <code>tools/run_tests.sh</code>, which takes a
+repo-wide lock in the git common dir, so every session and worktree of the repo shares it. Two
+sessions ending a turn together no longer run the suite against the same test database at once; the
+second waits for the first. A suite that runs past <code>stack.test_timeout_sec</code> (default 600) is killed
+with everything it spawned. The wait is capped by <code>stack.test_lock_wait_sec</code> (default 600), and both
+are trimmed to fit inside the Stop hook's 1800s timeout. When the suite didn't actually run (lock held
+too long, timeout, bad settings), the gate blocks as <strong>UNVERIFIED</strong> or <strong>SETUP ERROR</strong>, never a silent
+pass. To run the suite by hand under the same lock: <code>tools/run_tests.sh -- bin/ci</code>.</p>
 <p><strong>Review layer (<code>components.review_gate</code>, opt-in, default off).</strong> When on, the same Stop hook also
 requires a <strong>verified blind-review artifact</strong> for the current diff: the <code>blind-review</code> skill writes
 <code>.claude/.review/current.json</code>, and <code>tools/review_verify.sh</code> refuses it unless its <code>diff_sha</code> matches

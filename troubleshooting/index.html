@@ -925,6 +925,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-verification-gate-says-unverified-or-setup-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The verification gate says UNVERIFIED or SETUP ERROR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1110,6 +1121,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-verification-gate-says-unverified-or-setup-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The verification gate says UNVERIFIED or SETUP ERROR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1202,6 +1224,14 @@ Re-link them (see <a href="../agents/">agents.md</a>).</p>
 <li>Verification gate: edit <code>hooks/verification_gate.sh</code> per the note at its tail (swap <code>exit 0</code> for
   <code>exit 2</code> when warnings exist). Promote only after the warn phase is quiet on false positives.</li>
 </ul>
+<h2 id="the-verification-gate-says-unverified-or-setup-error">The verification gate says UNVERIFIED or SETUP ERROR<a class="headerlink" href="#the-verification-gate-says-unverified-or-setup-error" title="Permanent link">&para;</a></h2>
+<p>The suite didn't run to completion, so the gate refuses to pass it.
+- <strong>"another test run held the lock"</strong>: another session or worktree of this repo was running the suite
+  for longer than <code>stack.test_lock_wait_sec</code>. Let it finish, or raise the wait.
+- <strong>"exceeded …s and was killed"</strong>: the suite is slower than <code>stack.test_timeout_sec</code>. Raise it; it's
+  capped to fit the Stop hook's 1800s timeout.
+- <strong>SETUP ERROR</strong>: one of those settings isn't whole seconds, or the lock file can't be created in the
+  repo's git dir.</p>
 <h2 id="the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version">The <code>rails</code> MCP server won't connect (<code>-32602 Unsupported protocol version</code>)<a class="headerlink" href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" title="Permanent link">&para;</a></h2>
 <p>Installers before v0.2.7 wrote a project <code>.mcp.json</code> running <code>bundle exec rails-mcp-server</code> and
 suggested <code>gem "rails-mcp-server"</code> in the Gemfile. A project entry overrides your user-scope <code>rails</code>
