@@ -73,6 +73,15 @@ A `test_command` failure **blocks by default**. Rolling out gradually? `touch .c
 to downgrade to warn-only (the failure is surfaced but doesn't block). A Stop hook's `exit 2` prevents
 the stop and continues so Claude addresses the gap.
 
+**One test run at a time.** The gate runs `test_command` through `tools/run_tests.sh`, which takes a
+repo-wide lock in the git common dir, so every session and worktree of the repo shares it. Two
+sessions ending a turn together no longer run the suite against the same test database at once; the
+second waits for the first. A suite that runs past `stack.test_timeout_sec` (default 600) is killed
+with everything it spawned. The wait is capped by `stack.test_lock_wait_sec` (default 600), and both
+are trimmed to fit inside the Stop hook's 1800s timeout. When the suite didn't actually run (lock held
+too long, timeout, bad settings), the gate blocks as **UNVERIFIED** or **SETUP ERROR**, never a silent
+pass. To run the suite by hand under the same lock: `tools/run_tests.sh -- bin/ci`.
+
 **Review layer (`components.review_gate`, opt-in, default off).** When on, the same Stop hook also
 requires a **verified blind-review artifact** for the current diff: the `blind-review` skill writes
 `.claude/.review/current.json`, and `tools/review_verify.sh` refuses it unless its `diff_sha` matches

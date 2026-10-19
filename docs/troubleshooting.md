@@ -55,6 +55,15 @@ Re-link them (see [agents.md](agents.md)).
 - Verification gate: edit `hooks/verification_gate.sh` per the note at its tail (swap `exit 0` for
   `exit 2` when warnings exist). Promote only after the warn phase is quiet on false positives.
 
+## The verification gate says UNVERIFIED or SETUP ERROR
+The suite didn't run to completion, so the gate refuses to pass it.
+- **"another test run held the lock"**: another session or worktree of this repo was running the suite
+  for longer than `stack.test_lock_wait_sec`. Let it finish, or raise the wait.
+- **"exceeded …s and was killed"**: the suite is slower than `stack.test_timeout_sec`. Raise it; it's
+  capped to fit the Stop hook's 1800s timeout.
+- **SETUP ERROR**: one of those settings isn't whole seconds, or the lock file can't be created in the
+  repo's git dir.
+
 ## The `rails` MCP server won't connect (`-32602 Unsupported protocol version`)
 Installers before v0.2.7 wrote a project `.mcp.json` running `bundle exec rails-mcp-server` and
 suggested `gem "rails-mcp-server"` in the Gemfile. A project entry overrides your user-scope `rails`
