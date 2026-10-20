@@ -936,6 +936,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-verification-gate-fails-with-bundlergemnotfound-or-the-wrong-ruby" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The verification gate fails with Bundler::GemNotFound or the wrong Ruby
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1132,6 +1143,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-verification-gate-fails-with-bundlergemnotfound-or-the-wrong-ruby" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The verification gate fails with Bundler::GemNotFound or the wrong Ruby
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1231,7 +1253,17 @@ Re-link them (see <a href="../agents/">agents.md</a>).</p>
 - <strong>"exceeded …s and was killed"</strong>: the suite is slower than <code>stack.test_timeout_sec</code>. Raise it; it's
   capped to fit the Stop hook's 1800s timeout.
 - <strong>SETUP ERROR</strong>: one of those settings isn't whole seconds, or the lock file can't be created in the
-  repo's git dir.</p>
+  repo's git dir.
+- <strong>"no tests ran"</strong>: the command passed, but every test summary in its output said 0 tests
+  (<code>0 runs,</code>, <code>0 tests,</code> or <code>0 examples,</code>). The command doesn't match the suite, e.g. <code>bin/rails test</code> in an RSpec
+  app. Set <code>stack.test_command</code> to <code>"auto"</code> or the right command; <code>/harness:doctor</code> shows what the
+  gate will run.</p>
+<h2 id="the-verification-gate-fails-with-bundlergemnotfound-or-the-wrong-ruby">The verification gate fails with <code>Bundler::GemNotFound</code> or the wrong Ruby<a class="headerlink" href="#the-verification-gate-fails-with-bundlergemnotfound-or-the-wrong-ruby" title="Permanent link">&para;</a></h2>
+<p>Hooks inherit Claude Code's environment, which can carry a different Ruby than the repo's
+<code>.ruby-version</code>. When mise has that Ruby installed, the gate runs the suite under
+<code>mise exec ruby@&lt;.ruby-version&gt; --</code>; if you use mise for Ruby, run <code>mise install</code> so it does.
+Otherwise the gate uses whatever Ruby the environment provides; rbenv's shims read <code>.ruby-version</code>
+themselves. <code>/harness:doctor</code> says which applies.</p>
 <h2 id="the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version">The <code>rails</code> MCP server won't connect (<code>-32602 Unsupported protocol version</code>)<a class="headerlink" href="#the-rails-mcp-server-wont-connect-32602-unsupported-protocol-version" title="Permanent link">&para;</a></h2>
 <p>Installers before v0.2.7 wrote a project <code>.mcp.json</code> running <code>bundle exec rails-mcp-server</code> and
 suggested <code>gem "rails-mcp-server"</code> in the Gemfile. A project entry overrides your user-scope <code>rails</code>

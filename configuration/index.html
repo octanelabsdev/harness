@@ -1032,7 +1032,7 @@ enforcing gates stay inert.</p>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    "ui_dirs":    ["app/views", "app/controllers"], // subset whose change should ship an operator test
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    "test_dir":   "test",                       // where unit/integration tests live
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    "test_command": "bin/rails test",           // how to run the suite ("" = unknown)
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    "test_command": "auto",                     // how to run the suite ("auto" = detect, "" = unknown)
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    "test_timeout_sec": 600,                    // optional: kill a gate test run after this long
 <a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    "test_lock_wait_sec": 600,                  // optional: how long to wait for another session's run
 <a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    "agents_bundle": {                          // optional: default agent bundle for /harness:agents
@@ -1052,7 +1052,12 @@ enforcing gates stay inert.</p>
   operator-test check.</li>
 <li><strong><code>test_command</code></strong> — the canonical check the verification gate <strong>runs</strong> on a Stop with impl changes;
   a non-zero exit blocks (see <a href="../components/">components.md</a>). If empty, the gate only runs its
-  advisory operator-test check.</li>
+  advisory operator-test check. <strong><code>"auto"</code></strong> (the <code>rails</code> preset's default) picks the command for the
+  configured <code>stack.name</code> on every run. For <code>rails</code>: <code>bundle exec rspec</code> when <code>spec/</code> exists and
+  <code>rspec-rails</code> is in the bundle, otherwise <code>bin/rails test</code>. Any other value is run exactly as written,
+  so an explicit <code>bin/ci</code> stays <code>bin/ci</code>. <code>"auto"</code> on a stack with no resolver blocks every Stop as a
+  SETUP ERROR rather than skip the tests. <code>/harness:doctor</code> prints the command the gate will run and
+  flags an explicit Rails command that doesn't match the repo's suite.</li>
 <li><strong><code>test_timeout_sec</code></strong> / <strong><code>test_lock_wait_sec</code></strong> (optional, whole seconds, default 600 each) — the
   verification gate runs <code>test_command</code> under a repo-wide lock so concurrent sessions don't share the
   test database mid-run. The first kills a run that takes longer; the second is how long to wait for
@@ -1104,7 +1109,7 @@ enforcing gates stay inert.</p>
 <td><code>rails</code></td>
 <td>app, lib, db/migrate</td>
 <td>test/system</td>
-<td>bin/rails test</td>
+<td>auto (<code>bundle exec rspec</code> or <code>bin/rails test</code>)</td>
 </tr>
 <tr>
 <td><code>node</code></td>
