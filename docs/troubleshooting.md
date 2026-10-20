@@ -63,6 +63,17 @@ The suite didn't run to completion, so the gate refuses to pass it.
   capped to fit the Stop hook's 1800s timeout.
 - **SETUP ERROR**: one of those settings isn't whole seconds, or the lock file can't be created in the
   repo's git dir.
+- **"no tests ran"**: the command passed, but every test summary in its output said 0 tests
+  (`0 runs,` or `0 examples,`). The command doesn't match the suite, e.g. `bin/rails test` in an RSpec
+  app. Set `stack.test_command` to `"auto"` or the right command; `/harness:doctor` shows what the
+  gate will run.
+
+## The verification gate fails with `Bundler::GemNotFound` or the wrong Ruby
+Hooks inherit Claude Code's environment, which can carry a different Ruby than the repo's
+`.ruby-version`. When `mise` is on PATH, the gate runs the suite under
+`mise exec ruby@<.ruby-version> --`, so check that `mise` is installed and that version is too
+(`mise install`). Without mise, the gate uses whatever Ruby the environment provides; rbenv's shims
+read `.ruby-version` themselves. `/harness:doctor` says which applies.
 
 ## The `rails` MCP server won't connect (`-32602 Unsupported protocol version`)
 Installers before v0.2.7 wrote a project `.mcp.json` running `bundle exec rails-mcp-server` and

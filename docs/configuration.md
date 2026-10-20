@@ -23,7 +23,7 @@ enforcing gates stay inert.
     "ui_dirs":    ["app/views", "app/controllers"], // subset whose change should ship an operator test
     "test_dir":   "test",                       // where unit/integration tests live
     "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
-    "test_command": "bin/rails test",           // how to run the suite ("" = unknown)
+    "test_command": "auto",                     // how to run the suite ("auto" = detect, "" = unknown)
     "test_timeout_sec": 600,                    // optional: kill a gate test run after this long
     "test_lock_wait_sec": 600,                  // optional: how long to wait for another session's run
     "agents_bundle": {                          // optional: default agent bundle for /harness:agents
@@ -43,7 +43,11 @@ enforcing gates stay inert.
   operator-test check.
 - **`test_command`** — the canonical check the verification gate **runs** on a Stop with impl changes;
   a non-zero exit blocks (see [components.md](components.md)). If empty, the gate only runs its
-  advisory operator-test check.
+  advisory operator-test check. **`"auto"`** (the `rails` preset's default) picks the command from the
+  repo on every run: `bundle exec rspec` when `spec/` exists and `rspec-rails` is in the bundle,
+  otherwise `bin/rails test`. Any other value is run exactly as written, so an explicit `bin/ci` stays
+  `bin/ci`. On stacks without a resolver, `"auto"` runs nothing. `/harness:doctor` prints the
+  command the gate will run and flags an explicit Rails command that doesn't match the repo's suite.
 - **`test_timeout_sec`** / **`test_lock_wait_sec`** (optional, whole seconds, default 600 each) — the
   verification gate runs `test_command` under a repo-wide lock so concurrent sessions don't share the
   test database mid-run. The first kills a run that takes longer; the second is how long to wait for
@@ -86,7 +90,7 @@ Presets live in [`stacks/`](https://github.com/octanelabsdev/harness/tree/main/s
 
 | Preset | impl_dirs | operator_test_dir | test_command |
 |---|---|---|---|
-| `rails` | app, lib, db/migrate | test/system | bin/rails test |
+| `rails` | app, lib, db/migrate | test/system | auto (`bundle exec rspec` or `bin/rails test`) |
 | `node` | src, lib, app | e2e | npm test |
 | `python` | src, app | tests/e2e | pytest |
 | `go` | cmd, internal, pkg | e2e | go test ./... |

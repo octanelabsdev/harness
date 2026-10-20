@@ -4,7 +4,7 @@
   "ui_dirs": ["app/views", "app/controllers"],
   "test_dir": "test",
   "operator_test_dir": "test/system",
-  "test_command": "bin/rails test",
+  "test_command": "auto",
   "agents_bundle": {
     "repo": "octanelabsdev/rails-agents",
     "glob": ["rails-*.md", "dhh-code-reviewer.md"]

@@ -5,6 +5,7 @@
 set -uo pipefail
 shopt -s nullglob
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; . "$HERE/../hooks/_harness_lib.sh"
+. "$HERE/../lib/harness_detect.sh"
 PLUGIN="$(cd "$HERE/.." && pwd)"
 repo="$(harness_repo)"; cd "$repo" 2>/dev/null || true
 fail=0; warn=0
@@ -58,7 +59,25 @@ else
   [ -z "$missing" ] && ok "impl_dirs all exist" || note "impl_dirs declared but not present:$missing"
   if component_on verification_gate; then
     tc="$(hcfg '.stack.test_command' '')"
-    [ -n "$tc" ] && ok "verification_gate on + test_command set" || note "verification_gate on but test_command is empty (nothing to run)"
+    rtc="$(harness_resolve_test_command "$repo" "$tc")"
+    if [ -z "$rtc" ]; then
+      note "verification_gate on but test_command resolves to nothing (\"${tc}\") — nothing to run"
+    else
+      ok "verification_gate runs: $rtc$([ "$tc" = auto ] && printf ' (auto)')"
+    fi
+    if [ "$(harness_detect_stack "$repo")" = rails ]; then
+      want="$(harness_rails_test_command "$repo")"
+      case "$tc" in
+        "bin/rails test"|"bundle exec rspec")
+          [ "$tc" = "$want" ] || note "test_command is '$tc' but this repo's suite runs with '$want' — set it to \"auto\"" ;;
+      esac
+    fi
+    wrapped="$(harness_wrap_ruby "$repo" "true")"
+    if [ -f .ruby-version ] && [ "$wrapped" = true ]; then
+      note "no mise on PATH: the gate runs under whatever Ruby Claude Code inherited, not .ruby-version's"
+    elif [ "$wrapped" != true ]; then
+      ok "gate pins Ruby: ${wrapped%% -- *}"
+    fi
   fi
   if [ "$(hcfg '.components."review_gate"' 'false')" = "true" ]; then
     if [ -d .claude/agents ] && ls .claude/agents/*.md >/dev/null 2>&1; then ok "review_gate on + a reviewer agent is present"; else bad "review_gate on but no reviewer in .claude/agents (BYO a reviewer)"; fi

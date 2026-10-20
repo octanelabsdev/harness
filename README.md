@@ -123,7 +123,7 @@ After `install.sh`, your project has:
     "impl_dirs": ["app", "lib", "db/migrate"],
     "ui_dirs": ["app/views", "app/controllers"],
     "test_dir": "test", "operator_test_dir": "test/system",
-    "test_command": "bin/rails test"
+    "test_command": "auto"
   }
 }
 ```

@@ -21,6 +21,7 @@
 # by a reviewer artifact (harness roadmap phase 3).
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; . "$HERE/_harness_lib.sh"
+. "$HERE/../lib/harness_detect.sh"
 INPUT="$(cat)"
 
 # Loop guard — never re-block once continuation was already requested.
@@ -33,7 +34,7 @@ changed="$(git status --porcelain 2>/dev/null || true)"
 [ -z "$changed" ] && exit 0
 
 op_test="$(hcfg '.stack.operator_test_dir' '')"
-test_cmd="$(hcfg '.stack.test_command' '')"
+test_cmd="$(harness_resolve_test_command "$repo" "$(hcfg '.stack.test_command' '')")"
 review_gate="$(hcfg '.components."review_gate"' 'false')"
 impl=""; ui=""; op_changed=""
 while IFS= read -r line; do
@@ -74,12 +75,15 @@ if [ -n "$test_cmd" ]; then
       ;;
   esac
   trc=0
-  test_out="$(bash "$HERE/../tools/run_tests.sh" --timeout "$test_timeout_sec" --wait "$lock_wait_sec" -- "$test_cmd" 2>&1)" || trc=$?
+  test_out="$(bash "$HERE/../tools/run_tests.sh" --timeout "$test_timeout_sec" --wait "$lock_wait_sec" -- "$(harness_wrap_ruby "$repo" "$test_cmd")" 2>&1)" || trc=$?
+  # A green run that executed no tests is a misconfigured command, not a pass.
+  [ "$trc" = 0 ] && harness_ran_zero_tests "$test_out" && trc=5
   if [ "$trc" != 0 ]; then
     case "$trc" in
       2) verdict="SETUP ERROR — tests did NOT run (bad stack.test_timeout_sec / stack.test_lock_wait_sec, or the test lock can't be created; details below)" ;;
       3) verdict="UNVERIFIED — another test run held the lock past ${lock_wait_sec}s; tests did NOT run" ;;
       4) verdict="UNVERIFIED — test_command exceeded ${test_timeout_sec}s (stack.test_timeout_sec, capped to fit the ${hook_timeout_sec}s hook timeout) and was killed" ;;
+      5) verdict="UNVERIFIED — no tests ran (the command passed but every summary reported 0 tests; check stack.test_command)" ;;
       *) verdict="test_command failed" ;;
     esac
     {
