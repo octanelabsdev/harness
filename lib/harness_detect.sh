@@ -25,3 +25,46 @@ harness_detect_stack() { # <dir> -> echoes stack name
 
   printf '%s' generic
 }
+
+# Rails suites come in two shapes; read which one this repo has instead of assuming Minitest.
+harness_rails_test_command() { # <dir> -> echoes the suite command
+  local d="${1:-$PWD}"
+  if [ -d "$d/spec" ] && { grep -qE '^ +rspec-rails( |$)' "$d/Gemfile.lock" 2>/dev/null \
+       || grep -qE "gem ['\"]rspec-rails['\"]" "$d/Gemfile" 2>/dev/null; }; then
+    printf '%s' 'bundle exec rspec'
+  else
+    printf '%s' 'bin/rails test'
+  fi
+}
+
+# stack.test_command as the gate should run it: "auto" is resolved for the configured stack.name on every
+# call, any other value is used as written. "auto" on a stack with no resolver resolves to "".
+harness_resolve_test_command() { # <dir> <configured> <stack name> -> echoes the command
+  local d="$1" tc="$2" stack="$3"
+  [ "$tc" = auto ] || { printf '%s' "$tc"; return; }
+  case "$stack" in
+    rails) harness_rails_test_command "$d" ;;
+  esac
+}
+
+# Hooks inherit Claude Code's environment, whose Ruby may not be the one .ruby-version pins, so run
+# under the pinned version when mise already has it installed. `mise where` never installs, so a machine
+# whose Ruby comes from rbenv/chruby/asdf keeps running the command unchanged.
+harness_wrap_ruby() { # <dir> <command> -> echoes the command to run
+  local d="$1" cmd="$2" v=""
+  [ -f "$d/.ruby-version" ] && v="$(tr -d '[:space:]' < "$d/.ruby-version")"
+  v="${v#ruby-}"
+  if [ -n "$v" ] && command -v mise >/dev/null 2>&1 && mise where "ruby@$v" >/dev/null 2>&1; then
+    printf 'mise exec ruby@%s -- bash -c %q' "$v" "$cmd"
+  else
+    printf '%s' "$cmd"
+  fi
+}
+
+# A runner that reports only zero-test summaries verified nothing. Reads Minitest ("N runs,"), minitest-reporters
+# ("N tests,") and RSpec ("N examples,") summaries; no summary line, or any summary above zero, is not zero.
+harness_ran_zero_tests() { # <test output> -> exit 0 when every summary line reports 0 tests
+  local counts
+  counts="$(printf '%s\n' "$1" | grep -oE '(^|[^0-9])[0-9]+ (runs|tests?|examples?), ' | grep -oE '[0-9]+' || true)"
+  [ -n "$counts" ] && ! grep -qv '^0$' <<< "$counts"
+}

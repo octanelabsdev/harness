@@ -340,6 +340,121 @@ stop_timeout_sec="$(jq -r '.hooks.Stop[0].hooks[] | select(.command|test("verifi
 [ "$stop_timeout_sec" -gt 1200 ] && ok "hooks.json Stop timeout (${stop_timeout_sec}s) exceeds lock wait + test timeout" || no "hooks.json Stop timeout ${stop_timeout_sec}s must exceed 1200s"
 rm -rf "$O"
 
+# ---- verification_gate test command: auto resolution, zero-test guard, Ruby pin ----
+echo "verification_gate (test command):"
+O="$(mktemp -d "${TMPDIR:-/tmp}/harness-hookout.XXXXXX")"
+STUB="$O/bin"; mkdir -p "$STUB"
+# Stub runners record what ran and print a real-looking summary, so no Ruby is needed.
+cat > "$STUB/bundle" <<EOF
+#!/usr/bin/env bash
+echo "bundle \$*" >> "$O/ran"; echo "3 examples, 0 failures"
+EOF
+# Stub mise: `where` succeeds only for versions listed in $O/mise-installed, like the real one.
+cat > "$STUB/mise" <<EOF
+#!/usr/bin/env bash
+if [ "\$1" = where ]; then grep -qx "\${2#ruby@}" "$O/mise-installed"; exit; fi
+echo "mise \$*" >> "$O/mise"
+while [ \$# -gt 0 ] && [ "\$1" != -- ]; do shift; done; shift; exec "\$@"
+EOF
+chmod +x "$STUB/bundle" "$STUB/mise"
+echo 3.4.4 > "$O/mise-installed"
+# rails_repo <rspec|minitest> <test_command> [bin/rails output] -> R: a Rails repo with an impl change
+rails_repo() {
+  committed_repo "$(vcfg "$2" '{"name":"rails"}')"
+  echo 'gem "rails"' > "$R/Gemfile"
+  if [ "$1" = rspec ]; then mkdir -p "$R/spec"; printf 'GEM\n  specs:\n    rspec-rails (7.1.1)\n' > "$R/Gemfile.lock"; fi
+  mkdir -p "$R/bin"
+  printf '#!/usr/bin/env bash\necho "bin/rails $*" >> "%s/ran"; echo "%s"\n' "$O" "${3:-2 runs, 2 assertions, 0 failures, 0 errors, 0 skips}" > "$R/bin/rails"
+  chmod +x "$R/bin/rails"; : > "$O/ran"; : > "$O/mise"
+}
+ran() { cat "$O/ran"; }
+
+rails_repo rspec auto; PATH="$STUB:$PATH" run_stop "$R" false
+[ "$RC" = 0 ] && [ "$(ran)" = "bundle exec rspec" ] && ok "auto in an RSpec repo -> runs bundle exec rspec" || no "auto rspec: expected bundle exec rspec + exit 0, got '$(ran)', $RC: $OUT"
+rm -rf "$R"
+
+rails_repo minitest auto; PATH="$STUB:$PATH" run_stop "$R" false
+[ "$RC" = 0 ] && [ "$(ran)" = "bin/rails test" ] && ok "auto in a Minitest repo -> runs bin/rails test" || no "auto minitest: expected bin/rails test + exit 0, got '$(ran)', $RC: $OUT"
+rm -rf "$R"
+
+# The beanlink case: an explicit command wins over auto, and when it finds no tests the gate blocks.
+rails_repo rspec "bin/rails test" "0 runs, 0 assertions, 0 failures, 0 errors, 0 skips"; PATH="$STUB:$PATH" run_stop "$R" false
+[ "$(ran)" = "bin/rails test" ] && ok "explicit test_command wins over auto" || no "explicit: expected bin/rails test to run, got '$(ran)'"
+[ "$RC" = 2 ] && [[ "$OUT" == *"UNVERIFIED — no tests ran"* ]] && ok "green run with 0 tests -> blocks as UNVERIFIED" || no "zero tests: expected exit 2 + UNVERIFIED, got $RC: $OUT"
+touch "$R/.claude/.verification-warn"; PATH="$STUB:$PATH" run_stop "$R" false
+[ "$RC" = 0 ] && [[ "$OUT" == *"no tests ran"* ]] && ok "0 tests + .verification-warn -> warns, does not block" || no "zero tests warn: expected exit 0 + message, got $RC: $OUT"
+rm -rf "$R"
+
+committed_repo "$(vcfg 'echo "0 examples, 0 failures"')"; run_stop "$R" false
+[ "$RC" = 2 ] && ok "RSpec '0 examples' -> blocks" || no "0 examples: expected exit 2, got $RC"
+rm -rf "$R"
+
+committed_repo "$(vcfg 'echo "0 tests, 0 assertions, 0 failures, 0 errors, 0 skips"')"; run_stop "$R" false
+[ "$RC" = 2 ] && ok "minitest-reporters '0 tests' -> blocks" || no "0 tests: expected exit 2, got $RC"
+rm -rf "$R"
+
+committed_repo "$(vcfg 'echo "Ran 0 tests in 0.001s"')"; run_stop "$R" false
+[ "$RC" = 0 ] && ok "'Ran 0 tests in' (no comma) is not read as a summary" || no "Ran 0 tests: expected exit 0, got $RC: $OUT"
+rm -rf "$R"
+
+# Multi-step runners (bin/ci) can print an empty summary for one step; any real count is a pass.
+committed_repo "$(vcfg 'echo "0 runs, 0 assertions, 0 failures, 0 errors, 0 skips"; echo "12 examples, 0 failures"')"; run_stop "$R" false
+[ "$RC" = 0 ] && ok "one zero summary beside a real one -> passes" || no "mixed summaries: expected exit 0, got $RC: $OUT"
+rm -rf "$R"
+
+committed_repo "$(vcfg 'echo "10 runs, 30 assertions, 0 failures, 0 errors, 0 skips"')"; run_stop "$R" false
+[ "$RC" = 0 ] && ok "'10 runs' is not read as '0 runs'" || no "10 runs: expected exit 0, got $RC: $OUT"
+rm -rf "$R"
+
+rails_repo minitest auto; echo "ruby-3.4.4" > "$R/.ruby-version"; PATH="$STUB:$PATH" run_stop "$R" false
+[ "$RC" = 0 ] && grep -q '^mise exec ruby@3.4.4 -- bash -c' "$O/mise" && [ "$(ran)" = "bin/rails test" ] \
+  && ok ".ruby-version + mise -> runs under mise exec ruby@3.4.4" || no "ruby pin: expected mise exec ruby@3.4.4, got '$(cat "$O/mise")', ran '$(ran)', $RC: $OUT"
+rm -rf "$R"
+
+# mise for other tools but Ruby from rbenv: mise lacks the version, so it must not run (or install) it.
+rails_repo minitest auto; echo "3.3.9" > "$R/.ruby-version"; PATH="$STUB:$PATH" run_stop "$R" false
+[ "$RC" = 0 ] && [ ! -s "$O/mise" ] && [ "$(ran)" = "bin/rails test" ] \
+  && ok "mise without that Ruby installed -> command runs unwrapped" || no "mise lacks ruby: expected no mise exec, got '$(cat "$O/mise")', ran '$(ran)', $RC: $OUT"
+rm -rf "$R"
+
+# auto follows the configured stack.name, not a fresh detection that could disagree with it.
+# No Gemfile, bin/rails or config/application.rb, so detection says generic; stack.name still says rails.
+committed_repo "$(vcfg auto '{"name":"rails"}')"; run_stop "$R" false
+[[ "$OUT" == *"test_command failed: bin/rails test"* ]] && ok "auto uses stack.name even when detection wouldn't say rails" || no "auto by name: expected bin/rails test to be run, got $RC: $OUT"
+rm -rf "$R"
+
+committed_repo "$(vcfg auto '{"name":"generic"}')"; run_stop "$R" false
+[ "$RC" = 2 ] && [[ "$OUT" == *"SETUP ERROR"*"no resolver"* ]] && ok "auto with no resolver for the stack -> blocks as SETUP ERROR, never skips" || no "auto unresolved: expected exit 2 + SETUP ERROR, got $RC: $OUT"
+rm -rf "$R"
+
+# A real summary more than 200 lines above an empty one must still count: the guard reads the whole log.
+committed_repo "$(vcfg 'echo "240 runs, 900 assertions, 0 failures, 0 errors, 0 skips"; for i in $(seq 250); do echo step output; done; echo "0 runs, 0 assertions, 0 failures, 0 errors, 0 skips"')"
+run_stop "$R" false
+[ "$RC" = 0 ] && ok "real summary beyond the 200-line tail -> still passes" || no "long log: expected exit 0, got $RC: $OUT"
+rm -rf "$R"
+
+# Without mise the command runs as written (PATH holds no mise; the function needs only tr).
+out="$(PATH=/usr/bin:/bin bash -c '. "$1"; harness_wrap_ruby "$2" "bin/rails test"' _ "$HERE/../lib/harness_detect.sh" "$O")"
+echo "3.4.4" > "$O/.ruby-version"
+out2="$(PATH=/usr/bin:/bin bash -c '. "$1"; harness_wrap_ruby "$2" "bin/rails test"' _ "$HERE/../lib/harness_detect.sh" "$O")"
+[ "$out" = "bin/rails test" ] && [ "$out2" = "bin/rails test" ] && ok "no mise on PATH -> command unchanged" || no "no mise: got '$out' / '$out2'"
+
+# Doctor names the resolved command and flags an explicit Rails command that contradicts the repo.
+rails_repo rspec "bin/rails test"
+dout="$(CLAUDE_PROJECT_DIR="$R" bash "$HERE/harness_doctor.sh" 2>&1)"
+[[ "$dout" == *"verification_gate runs: bin/rails test"* ]] && [[ "$dout" == *"suite runs with 'bundle exec rspec'"* ]] \
+  && ok "doctor flags explicit bin/rails test in an RSpec repo" || no "doctor mismatch: expected the resolved command + mismatch note: $dout"
+rm -rf "$R"
+rails_repo rspec auto
+dout="$(CLAUDE_PROJECT_DIR="$R" bash "$HERE/harness_doctor.sh" 2>&1)"
+[[ "$dout" == *"verification_gate runs: bundle exec rspec (auto)"* ]] && [[ "$dout" != *"suite runs with"* ]] \
+  && ok "doctor shows the auto-resolved command, no mismatch" || no "doctor auto: $dout"
+rm -rf "$R"
+committed_repo "$(vcfg auto '{"name":"generic"}')"
+dout="$(CLAUDE_PROJECT_DIR="$R" bash "$HERE/harness_doctor.sh" 2>&1)"; drc=$?
+[ "$drc" = 2 ] && [[ "$dout" == *"has no resolver"* ]] && ok "doctor fails on auto with no resolver" || no "doctor unresolved: expected exit 2 + no resolver, got $drc: $dout"
+rm -rf "$R" "$O"
+
 # ---- verification_gate review layer (opt-in via components.review_gate) ----
 echo "verification_gate (review layer):"
 VER="$HERE/review_verify.sh"
