@@ -389,6 +389,14 @@ committed_repo "$(vcfg 'echo "0 examples, 0 failures"')"; run_stop "$R" false
 [ "$RC" = 2 ] && ok "RSpec '0 examples' -> blocks" || no "0 examples: expected exit 2, got $RC"
 rm -rf "$R"
 
+committed_repo "$(vcfg 'echo "0 tests, 0 assertions, 0 failures, 0 errors, 0 skips"')"; run_stop "$R" false
+[ "$RC" = 2 ] && ok "minitest-reporters '0 tests' -> blocks" || no "0 tests: expected exit 2, got $RC"
+rm -rf "$R"
+
+committed_repo "$(vcfg 'echo "Ran 0 tests in 0.001s"')"; run_stop "$R" false
+[ "$RC" = 0 ] && ok "'Ran 0 tests in' (no comma) is not read as a summary" || no "Ran 0 tests: expected exit 0, got $RC: $OUT"
+rm -rf "$R"
+
 # Multi-step runners (bin/ci) can print an empty summary for one step; any real count is a pass.
 committed_repo "$(vcfg 'echo "0 runs, 0 assertions, 0 failures, 0 errors, 0 skips"; echo "12 examples, 0 failures"')"; run_stop "$R" false
 [ "$RC" = 0 ] && ok "one zero summary beside a real one -> passes" || no "mixed summaries: expected exit 0, got $RC: $OUT"

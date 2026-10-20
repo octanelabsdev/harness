@@ -74,7 +74,7 @@ to downgrade to warn-only (the failure is surfaced but doesn't block). A Stop ho
 the stop and continues so Claude addresses the gap.
 
 **A pass has to test something.** If the command exits 0 but every test summary in its output reports
-zero tests (`0 runs,` from Minitest, `0 examples,` from RSpec), the gate blocks as **UNVERIFIED — no
+zero tests (`0 runs,` from Minitest, `0 tests,` from minitest-reporters, `0 examples,` from RSpec), the gate blocks as **UNVERIFIED — no
 tests ran**: the command doesn't match the suite. Output with no summary line, or with any summary
 above zero (a `bin/ci` whose system-test step is empty, say), passes as before. The check reads the
 suite's whole log, not just the last 200 lines the gate shows.

@@ -61,10 +61,10 @@ harness_wrap_ruby() { # <dir> <command> -> echoes the command to run
   fi
 }
 
-# A runner that reports only zero-test summaries verified nothing. Reads Minitest ("N runs,") and RSpec
-# ("N examples,") summary lines; output with no summary line, or any summary above zero, is not zero.
+# A runner that reports only zero-test summaries verified nothing. Reads Minitest ("N runs,"), minitest-reporters
+# ("N tests,") and RSpec ("N examples,") summaries; no summary line, or any summary above zero, is not zero.
 harness_ran_zero_tests() { # <test output> -> exit 0 when every summary line reports 0 tests
   local counts
-  counts="$(printf '%s\n' "$1" | grep -oE '(^|[^0-9])[0-9]+ (runs|examples?), ' | grep -oE '[0-9]+' || true)"
+  counts="$(printf '%s\n' "$1" | grep -oE '(^|[^0-9])[0-9]+ (runs|tests?|examples?), ' | grep -oE '[0-9]+' || true)"
   [ -n "$counts" ] && ! grep -qv '^0$' <<< "$counts"
 }

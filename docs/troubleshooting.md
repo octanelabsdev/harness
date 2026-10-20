@@ -64,7 +64,7 @@ The suite didn't run to completion, so the gate refuses to pass it.
 - **SETUP ERROR**: one of those settings isn't whole seconds, or the lock file can't be created in the
   repo's git dir.
 - **"no tests ran"**: the command passed, but every test summary in its output said 0 tests
-  (`0 runs,` or `0 examples,`). The command doesn't match the suite, e.g. `bin/rails test` in an RSpec
+  (`0 runs,`, `0 tests,` or `0 examples,`). The command doesn't match the suite, e.g. `bin/rails test` in an RSpec
   app. Set `stack.test_command` to `"auto"` or the right command; `/harness:doctor` shows what the
   gate will run.
 
