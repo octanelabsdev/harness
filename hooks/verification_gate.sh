@@ -34,7 +34,8 @@ changed="$(git status --porcelain 2>/dev/null || true)"
 [ -z "$changed" ] && exit 0
 
 op_test="$(hcfg '.stack.operator_test_dir' '')"
-test_cmd="$(harness_resolve_test_command "$repo" "$(hcfg '.stack.test_command' '')")"
+raw_cmd="$(hcfg '.stack.test_command' '')"
+test_cmd="$(harness_resolve_test_command "$repo" "$raw_cmd" "$(hcfg '.stack.name' '')")"
 review_gate="$(hcfg '.components."review_gate"' 'false')"
 impl=""; ui=""; op_changed=""
 while IFS= read -r line; do
@@ -58,7 +59,7 @@ fi
 # run_tests.sh serializes runs across sessions/worktrees (a shared test DB makes concurrent suites fail
 # each other). Its limits must stay under the Stop hook's timeout in hooks.json: a hook killed by Claude
 # Code renders no decision, i.e. a silent pass.
-if [ -n "$test_cmd" ]; then
+if [ -n "$test_cmd" ] || [ "$raw_cmd" = auto ]; then
   test_timeout_sec="$(hcfg '.stack.test_timeout_sec' '600')"
   lock_wait_sec="$(hcfg '.stack.test_lock_wait_sec' '600')"
   # Fit wait + run inside the hook's own timeout (60s margin for the kill grace and the review layer):
@@ -74,20 +75,29 @@ if [ -n "$test_cmd" ]; then
       [ $(( test_timeout_sec + lock_wait_sec )) -gt "$budget_sec" ] && lock_wait_sec=$(( budget_sec - test_timeout_sec ))
       ;;
   esac
-  trc=0
-  test_out="$(bash "$HERE/../tools/run_tests.sh" --timeout "$test_timeout_sec" --wait "$lock_wait_sec" -- "$(harness_wrap_ruby "$repo" "$test_cmd")" 2>&1)" || trc=$?
-  # A green run that executed no tests is a misconfigured command, not a pass.
-  [ "$trc" = 0 ] && harness_ran_zero_tests "$test_out" && trc=5
+  trc=0; test_out=""
+  if [ -z "$test_cmd" ]; then
+    trc=6   # "auto" with no resolver for this stack must not skip the tests silently
+  else
+    log_copy="$(mktemp "${TMPDIR:-/tmp}/harness-gate-log.XXXXXX" 2>/dev/null || true)"
+    test_out="$(bash "$HERE/../tools/run_tests.sh" --timeout "$test_timeout_sec" --wait "$lock_wait_sec" --log-copy "${log_copy:-/dev/null}" -- "$(harness_wrap_ruby "$repo" "$test_cmd")" 2>&1)" || trc=$?
+    full_out="$( [ -n "$log_copy" ] && cat "$log_copy" 2>/dev/null || true)"
+    [ -n "$log_copy" ] && rm -f "$log_copy"
+    # A green run that executed no tests is a misconfigured command, not a pass. Judge the whole log:
+    # test_out is only its last 200 lines, which can drop a real summary and keep an empty one.
+    [ "$trc" = 0 ] && harness_ran_zero_tests "${full_out:-$test_out}" && trc=5
+  fi
   if [ "$trc" != 0 ]; then
     case "$trc" in
       2) verdict="SETUP ERROR — tests did NOT run (bad stack.test_timeout_sec / stack.test_lock_wait_sec, or the test lock can't be created; details below)" ;;
       3) verdict="UNVERIFIED — another test run held the lock past ${lock_wait_sec}s; tests did NOT run" ;;
       4) verdict="UNVERIFIED — test_command exceeded ${test_timeout_sec}s (stack.test_timeout_sec, capped to fit the ${hook_timeout_sec}s hook timeout) and was killed" ;;
       5) verdict="UNVERIFIED — no tests ran (the command passed but every summary reported 0 tests; check stack.test_command)" ;;
+      6) verdict="SETUP ERROR — test_command is \"auto\" but stack.name '$(hcfg '.stack.name' '')' has no resolver; set an explicit command" ;;
       *) verdict="test_command failed" ;;
     esac
     {
-      echo "VERIFICATION GATE — $verdict: $test_cmd"
+      echo "VERIFICATION GATE — $verdict: ${test_cmd:-$raw_cmd}"
       printf '%s\n' "$test_out" | tail -n 40
       [ -n "$op_note" ] && echo "$op_note"
     } >&2

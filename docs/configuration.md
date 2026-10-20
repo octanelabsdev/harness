@@ -43,11 +43,12 @@ enforcing gates stay inert.
   operator-test check.
 - **`test_command`** — the canonical check the verification gate **runs** on a Stop with impl changes;
   a non-zero exit blocks (see [components.md](components.md)). If empty, the gate only runs its
-  advisory operator-test check. **`"auto"`** (the `rails` preset's default) picks the command from the
-  repo on every run: `bundle exec rspec` when `spec/` exists and `rspec-rails` is in the bundle,
-  otherwise `bin/rails test`. Any other value is run exactly as written, so an explicit `bin/ci` stays
-  `bin/ci`. On stacks without a resolver, `"auto"` runs nothing. `/harness:doctor` prints the
-  command the gate will run and flags an explicit Rails command that doesn't match the repo's suite.
+  advisory operator-test check. **`"auto"`** (the `rails` preset's default) picks the command for the
+  configured `stack.name` on every run. For `rails`: `bundle exec rspec` when `spec/` exists and
+  `rspec-rails` is in the bundle, otherwise `bin/rails test`. Any other value is run exactly as written,
+  so an explicit `bin/ci` stays `bin/ci`. `"auto"` on a stack with no resolver blocks every Stop as a
+  SETUP ERROR rather than skip the tests. `/harness:doctor` prints the command the gate will run and
+  flags an explicit Rails command that doesn't match the repo's suite.
 - **`test_timeout_sec`** / **`test_lock_wait_sec`** (optional, whole seconds, default 600 each) — the
   verification gate runs `test_command` under a repo-wide lock so concurrent sessions don't share the
   test database mid-run. The first kills a run that takes longer; the second is how long to wait for

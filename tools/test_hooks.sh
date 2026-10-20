@@ -349,15 +349,18 @@ cat > "$STUB/bundle" <<EOF
 #!/usr/bin/env bash
 echo "bundle \$*" >> "$O/ran"; echo "3 examples, 0 failures"
 EOF
+# Stub mise: `where` succeeds only for versions listed in $O/mise-installed, like the real one.
 cat > "$STUB/mise" <<EOF
 #!/usr/bin/env bash
+if [ "\$1" = where ]; then grep -qx "\${2#ruby@}" "$O/mise-installed"; exit; fi
 echo "mise \$*" >> "$O/mise"
 while [ \$# -gt 0 ] && [ "\$1" != -- ]; do shift; done; shift; exec "\$@"
 EOF
 chmod +x "$STUB/bundle" "$STUB/mise"
+echo 3.4.4 > "$O/mise-installed"
 # rails_repo <rspec|minitest> <test_command> [bin/rails output] -> R: a Rails repo with an impl change
 rails_repo() {
-  committed_repo "$(vcfg "$2")"
+  committed_repo "$(vcfg "$2" '{"name":"rails"}')"
   echo 'gem "rails"' > "$R/Gemfile"
   if [ "$1" = rspec ]; then mkdir -p "$R/spec"; printf 'GEM\n  specs:\n    rspec-rails (7.1.1)\n' > "$R/Gemfile.lock"; fi
   mkdir -p "$R/bin"
@@ -400,6 +403,28 @@ rails_repo minitest auto; echo "ruby-3.4.4" > "$R/.ruby-version"; PATH="$STUB:$P
   && ok ".ruby-version + mise -> runs under mise exec ruby@3.4.4" || no "ruby pin: expected mise exec ruby@3.4.4, got '$(cat "$O/mise")', ran '$(ran)', $RC: $OUT"
 rm -rf "$R"
 
+# mise for other tools but Ruby from rbenv: mise lacks the version, so it must not run (or install) it.
+rails_repo minitest auto; echo "3.3.9" > "$R/.ruby-version"; PATH="$STUB:$PATH" run_stop "$R" false
+[ "$RC" = 0 ] && [ ! -s "$O/mise" ] && [ "$(ran)" = "bin/rails test" ] \
+  && ok "mise without that Ruby installed -> command runs unwrapped" || no "mise lacks ruby: expected no mise exec, got '$(cat "$O/mise")', ran '$(ran)', $RC: $OUT"
+rm -rf "$R"
+
+# auto follows the configured stack.name, not a fresh detection that could disagree with it.
+# No Gemfile, bin/rails or config/application.rb, so detection says generic; stack.name still says rails.
+committed_repo "$(vcfg auto '{"name":"rails"}')"; run_stop "$R" false
+[[ "$OUT" == *"test_command failed: bin/rails test"* ]] && ok "auto uses stack.name even when detection wouldn't say rails" || no "auto by name: expected bin/rails test to be run, got $RC: $OUT"
+rm -rf "$R"
+
+committed_repo "$(vcfg auto '{"name":"generic"}')"; run_stop "$R" false
+[ "$RC" = 2 ] && [[ "$OUT" == *"SETUP ERROR"*"no resolver"* ]] && ok "auto with no resolver for the stack -> blocks as SETUP ERROR, never skips" || no "auto unresolved: expected exit 2 + SETUP ERROR, got $RC: $OUT"
+rm -rf "$R"
+
+# A real summary more than 200 lines above an empty one must still count: the guard reads the whole log.
+committed_repo "$(vcfg 'echo "240 runs, 900 assertions, 0 failures, 0 errors, 0 skips"; for i in $(seq 250); do echo step output; done; echo "0 runs, 0 assertions, 0 failures, 0 errors, 0 skips"')"
+run_stop "$R" false
+[ "$RC" = 0 ] && ok "real summary beyond the 200-line tail -> still passes" || no "long log: expected exit 0, got $RC: $OUT"
+rm -rf "$R"
+
 # Without mise the command runs as written (PATH holds no mise; the function needs only tr).
 out="$(PATH=/usr/bin:/bin bash -c '. "$1"; harness_wrap_ruby "$2" "bin/rails test"' _ "$HERE/../lib/harness_detect.sh" "$O")"
 echo "3.4.4" > "$O/.ruby-version"
@@ -416,6 +441,10 @@ rails_repo rspec auto
 dout="$(CLAUDE_PROJECT_DIR="$R" bash "$HERE/harness_doctor.sh" 2>&1)"
 [[ "$dout" == *"verification_gate runs: bundle exec rspec (auto)"* ]] && [[ "$dout" != *"suite runs with"* ]] \
   && ok "doctor shows the auto-resolved command, no mismatch" || no "doctor auto: $dout"
+rm -rf "$R"
+committed_repo "$(vcfg auto '{"name":"generic"}')"
+dout="$(CLAUDE_PROJECT_DIR="$R" bash "$HERE/harness_doctor.sh" 2>&1)"; drc=$?
+[ "$drc" = 2 ] && [[ "$dout" == *"has no resolver"* ]] && ok "doctor fails on auto with no resolver" || no "doctor unresolved: expected exit 2 + no resolver, got $drc: $dout"
 rm -rf "$R" "$O"
 
 # ---- verification_gate review layer (opt-in via components.review_gate) ----

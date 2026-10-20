@@ -59,9 +59,11 @@ else
   [ -z "$missing" ] && ok "impl_dirs all exist" || note "impl_dirs declared but not present:$missing"
   if component_on verification_gate; then
     tc="$(hcfg '.stack.test_command' '')"
-    rtc="$(harness_resolve_test_command "$repo" "$tc")"
-    if [ -z "$rtc" ]; then
-      note "verification_gate on but test_command resolves to nothing (\"${tc}\") — nothing to run"
+    rtc="$(harness_resolve_test_command "$repo" "$tc" "$(hcfg '.stack.name' '')")"
+    if [ "$tc" = auto ] && [ -z "$rtc" ]; then
+      bad "test_command is \"auto\" but stack.name '$(hcfg '.stack.name' '')' has no resolver — the gate blocks every Stop; set an explicit command"
+    elif [ -z "$rtc" ]; then
+      note "verification_gate on but test_command is empty (nothing to run)"
     else
       ok "verification_gate runs: $rtc$([ "$tc" = auto ] && printf ' (auto)')"
     fi
@@ -74,7 +76,7 @@ else
     fi
     wrapped="$(harness_wrap_ruby "$repo" "true")"
     if [ -f .ruby-version ] && [ "$wrapped" = true ]; then
-      note "no mise on PATH: the gate runs under whatever Ruby Claude Code inherited, not .ruby-version's"
+      note "the gate runs under whatever Ruby Claude Code inherited: mise isn't on PATH or doesn't have .ruby-version's Ruby installed"
     elif [ "$wrapped" != true ]; then
       ok "gate pins Ruby: ${wrapped%% -- *}"
     fi

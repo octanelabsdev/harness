@@ -70,10 +70,10 @@ The suite didn't run to completion, so the gate refuses to pass it.
 
 ## The verification gate fails with `Bundler::GemNotFound` or the wrong Ruby
 Hooks inherit Claude Code's environment, which can carry a different Ruby than the repo's
-`.ruby-version`. When `mise` is on PATH, the gate runs the suite under
-`mise exec ruby@<.ruby-version> --`, so check that `mise` is installed and that version is too
-(`mise install`). Without mise, the gate uses whatever Ruby the environment provides; rbenv's shims
-read `.ruby-version` themselves. `/harness:doctor` says which applies.
+`.ruby-version`. When mise has that Ruby installed, the gate runs the suite under
+`mise exec ruby@<.ruby-version> --`; if you use mise for Ruby, run `mise install` so it does.
+Otherwise the gate uses whatever Ruby the environment provides; rbenv's shims read `.ruby-version`
+themselves. `/harness:doctor` says which applies.
 
 ## The `rails` MCP server won't connect (`-32602 Unsupported protocol version`)
 Installers before v0.2.7 wrote a project `.mcp.json` running `bundle exec rails-mcp-server` and

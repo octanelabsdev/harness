@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_tests.sh — run the project's test command so that concurrent runs can't stomp each other.
 #
-#   run_tests.sh [--timeout SEC] [--wait SEC] -- <command>      (run from inside the repo)
+#   run_tests.sh [--timeout SEC] [--wait SEC] [--log-copy FILE] -- <command>   (run from inside the repo)
 #
 # Every Claude session (and every worktree of the same repo) shares one test database unless the app
 # isolates it, so two suites running at once fail each other at random. This runner:
@@ -14,13 +14,16 @@
 # A hand-run suite takes the same lock: tools/run_tests.sh -- bin/ci
 set -uo pipefail
 
-timeout_sec=600; wait_sec=600
+timeout_sec=600; wait_sec=600; log_copy=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --timeout|--wait)
       [ $# -ge 2 ] || { echo "run_tests: $1 needs a value" >&2; exit 2; }
       if [ "$1" = --timeout ]; then timeout_sec="$2"; else wait_sec="$2"; fi
       shift 2 ;;
+    --log-copy)   # copy the complete suite log here (only stdout's last 200 lines come back otherwise)
+      [ $# -ge 2 ] || { echo "run_tests: $1 needs a value" >&2; exit 2; }
+      log_copy="$2"; shift 2 ;;
     --) shift; break ;;
     *)  echo "run_tests: unknown argument '$1'" >&2; exit 2 ;;
   esac
@@ -152,6 +155,8 @@ while kill -0 "$child" 2>/dev/null; do
   sleep 0.2
 done
 wait "$child"; rc=$?; child=""
+# Copied while the lock is still held, so another run can't overwrite the log first.
+[ -n "$log_copy" ] && [ -n "$own_group" ] && cp "$log" "$log_copy" 2>/dev/null
 show_log
 [ "$rc" = 0 ] || exit 1
 exit 0

@@ -76,12 +76,15 @@ the stop and continues so Claude addresses the gap.
 **A pass has to test something.** If the command exits 0 but every test summary in its output reports
 zero tests (`0 runs,` from Minitest, `0 examples,` from RSpec), the gate blocks as **UNVERIFIED — no
 tests ran**: the command doesn't match the suite. Output with no summary line, or with any summary
-above zero (a `bin/ci` whose system-test step is empty, say), passes as before.
+above zero (a `bin/ci` whose system-test step is empty, say), passes as before. The check reads the
+suite's whole log, not just the last 200 lines the gate shows.
 
 **Which command, under which Ruby.** `test_command: "auto"` is resolved on every run (see
-[configuration.md](configuration.md)). If the repo has a `.ruby-version` and `mise` is on PATH, the
-suite runs under `mise exec ruby@<version> --`, because the hook inherits Claude Code's environment
-and that Ruby may not be the repo's.
+[configuration.md](configuration.md)). If the repo has a `.ruby-version` and mise already has that
+Ruby installed (`mise where ruby@<version>`), the suite runs under `mise exec ruby@<version> --`,
+because the hook inherits Claude Code's environment and that Ruby may not be the repo's. Otherwise
+the command runs as written, so a Ruby managed by rbenv, chruby or asdf is left alone and mise never
+installs anything inside the hook.
 
 **One test run at a time.** The gate runs `test_command` through `tools/run_tests.sh`, which takes a
 repo-wide lock in the git common dir, so every session and worktree of the repo shares it. Two
