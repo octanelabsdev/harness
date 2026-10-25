@@ -1073,8 +1073,8 @@ enforcing gates stay inert.</p>
   has no toggle — it only acts when there's no config yet; see <a href="../components/">components.md</a>.)</li>
 <li><strong><code>context_warning.window</code></strong> (optional) — the context window, in tokens, that the context warning
   scales its 75/85/95% steps to. <code>HARNESS_CONTEXT_WINDOW</code> in the environment overrides it, which suits
-  a per-user model choice better than a committed file. Unset, the hook infers 1M from a <code>[1m]</code> model
-  or a call over 200K, and otherwise assumes 200K. Values must be a plain positive integer (no leading
+  a per-user model choice better than a committed file. Unset, it is 1M, every current Claude model's
+  window. Values must be a plain positive integer (no leading
   zeros, at most nine digits); a non-numeric <code>HARNESS_CONTEXT_WINDOW</code> disables this lookup (see
   <a href="../components/">components.md</a>).</li>
 <li><strong><code>agents_bundle</code></strong> (optional) — the default agent bundle <code>/harness:agents</code> pulls when given no
