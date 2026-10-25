@@ -599,10 +599,10 @@ done
 echo "context_warning:"
 R="$(mkrepo '{"components":{}}')"
 CW_TMP="$(mktemp -d "${TMPDIR:-/tmp}/harness-cwtest.XXXXXX")"
-T="$R/transcript.jsonl"; RM=""
-usage() { # usage <main-thread tokens> [sidechain tokens] -> appends assistant entries to $T ($RM = requestedModel)
+T="$R/transcript.jsonl"
+usage() { # usage <main-thread tokens> [sidechain tokens] -> appends assistant entries to $T
   printf '{"type":"user","message":{"content":"hi"}}\n' >> "$T"
-  printf '{"type":"assistant","isSidechain":false,"requestedModel":"%s","message":{"usage":{"input_tokens":2,"cache_creation_input_tokens":1000,"cache_read_input_tokens":%s}}}\n' "$RM" "$(($1 - 1002))" >> "$T"
+  printf '{"type":"assistant","isSidechain":false,"message":{"usage":{"input_tokens":2,"cache_creation_input_tokens":1000,"cache_read_input_tokens":%s}}}\n' "$(($1 - 1002))" >> "$T"
   [ -n "${2:-}" ] && printf '{"type":"assistant","isSidechain":true,"message":{"usage":{"input_tokens":%s}}}\n' "$2" >> "$T"
   return 0
 }
@@ -614,75 +614,61 @@ EOF
 }
 fresh() { T="$R/transcript-$1.jsonl"; : > "$T"; } # fresh <name> -> start a new transcript
 
-# Unknown window: no marker, no override, never over 200K -> assumed 200K, steps 150K/170K/190K.
-usage 120000
-[ -z "$(run_cw)" ] && ok "user sees nothing under 150K" || no "warned under 150K"
-
+# No override: a 1M window, steps 750K/850K/950K.
 usage 160000
+[ -z "$(run_cw)" ] && ok "default 1M window: no warning at 160K" || no "warned at 160K on the default window"
+usage 700000
+[ -z "$(run_cw)" ] && ok "user sees nothing under 750K" || no "warned under 750K"
+
+usage 760000
 OUT="$(run_cw)"
 if jq -e '.systemMessage and .hookSpecificOutput.hookEventName == "UserPromptSubmit" and .hookSpecificOutput.additionalContext' <<< "$OUT" >/dev/null 2>&1; then
-  ok "at 160K the user gets one JSON object with a systemMessage and model context"
-else no "160K warning is not a single valid JSON object: $OUT"; fi
-grep -q "160K" <<< "$OUT" && ok "warning names the current size (160K)" || no "warning lacks the size: $OUT"
+  ok "at 760K the user gets one JSON object with a systemMessage and model context"
+else no "760K warning is not a single valid JSON object: $OUT"; fi
+grep -q "crossed 750K" <<< "$OUT" && grep -q "760K of a 1M window (76%)" <<< "$OUT" && ok "warning names the size and the share of the window" || no "760K warning wording wrong: $OUT"
 grep -q "not an instruction to stop" <<< "$OUT" && ok "model context says it is not an instruction to stop" || no "model context still mandates stopping: $OUT"
-grep -q "Window size unknown" <<< "$OUT" && ok "unknown window: the user is told how to set it" || no "unknown-window hint missing: $OUT"
-[ -z "$(run_cw)" ] && ok "the 150K step warns only once" || no "150K step warned twice"
+[ -z "$(run_cw)" ] && ok "the 750K step warns only once" || no "750K step warned twice"
 
-usage 165000 999999
-[ -z "$(run_cw)" ] && ok "a larger subagent call neither warns nor implies a bigger window" || no "sidechain usage counted"
-usage 172000
-grep -q "crossed 170K" <<< "$(run_cw)" && ok "assumed 200K window: warns at 170K" || no "assumed-window 170K step missing"
+usage 765000 999999
+[ -z "$(run_cw)" ] && ok "a larger subagent call does not warn" || no "sidechain usage counted"
+usage 860000
+grep -q "crossed 850K" <<< "$(run_cw)" && ok "warns again at 85% (850K)" || no "850K step missing"
 
 usage 90000
 [ -z "$(run_cw)" ] && ok "after /compact drops context, no warning" || no "warned after context dropped"
-usage 155000
-grep -q "crossed 150K" <<< "$(run_cw)" && ok "the 150K step re-arms after context drops" || no "150K step did not re-arm"
+usage 755000
+grep -q "crossed 750K" <<< "$(run_cw)" && ok "the 750K step re-arms after context drops" || no "750K step did not re-arm"
 
-grep -q "crossed 150K" <<< "$(run_cw other)" && ok "a new session (after /clear) gets its own steps" || no "new session did not warn at 150K"
-
-usage 210000
-[ -z "$(run_cw)" ] && ok "a call over 200K implies a 1M window: no warning at 210K" || no "warned at 210K after the window was inferred"
-
-# 1M window from an explicit [1m] model -> 750K/850K/950K.
-fresh one-m; RM="claude-opus-5-5[1m]"
-usage 160000
-[ -z "$(run_cw m1)" ] && ok "[1m] model: no warning at 160K" || no "[1m] model warned at 160K"
-usage 760000
-OUT="$(run_cw m1)"
-grep -q "crossed 750K" <<< "$OUT" && grep -q "of a 1M window (76%)" <<< "$OUT" && ok "[1m] model: warns at 75% and names the share of the window" || no "[1m] 750K step wrong: $OUT"
-usage 860000
-grep -q "crossed 850K" <<< "$(run_cw m1)" && ok "[1m] model: warns again at 85%" || no "[1m] 850K step missing"
-RM=""
+grep -q "crossed 750K" <<< "$(run_cw other)" && ok "a new session (after /clear) gets its own steps" || no "new session did not warn at 750K"
 
 # Overrides: harness.json context_warning.window, and HARNESS_CONTEXT_WINDOW over it.
-fresh cfg
-printf '{"components":{"context_warning":true},"context_warning":{"window":1000000}}' > "$R/.claude/harness.json"
-usage 160000
-[ -z "$(run_cw c1)" ] && ok "context_warning.window 1M: no warning at 160K" || no "config window ignored at 160K"
-usage 750000
-grep -q "crossed 750K" <<< "$(run_cw c1)" && ok "context_warning.window 1M: warns at 750K" || no "config window 750K step missing"
-
 fresh cfg200
 printf '{"components":{},"context_warning":{"window":200000}}' > "$R/.claude/harness.json"
 usage 175000
-grep -q "crossed 170K" <<< "$(run_cw c2)" && ok "context_warning.window 200K: steps at 150K/170K/190K" || no "200K window steps wrong"
+OUT="$(run_cw c2)"
+grep -q "crossed 170K" <<< "$OUT" && grep -q "of a 200K window" <<< "$OUT" && ok "context_warning.window 200K: steps at 150K/170K/190K" || no "200K window steps wrong: $OUT"
 CW_WINDOW=1000000
 [ -z "$(run_cw c3)" ] && ok "HARNESS_CONTEXT_WINDOW overrides context_warning.window" || no "env window did not override config"
 usage 760000
 grep -q "crossed 750K" <<< "$(run_cw c3)" && ok "HARNESS_CONTEXT_WINDOW 1M: warns at 750K, not the config's 190K" || no "env window 750K step missing"
+CW_WINDOW=650000
+usage 500000
+grep -q "crossed 487K" <<< "$(run_cw c4)" && ok "HARNESS_CONTEXT_WINDOW 650K: warns at 487K" || no "env window 650K step missing"
 CW_WINDOW=""
 
-fresh bad; usage 175000
+fresh bad; usage 760000
 printf '{"components":{},"context_warning":{"window":"lots"}}' > "$R/.claude/harness.json"
-grep -q "crossed 170K" <<< "$(run_cw c4)" && ok "a non-numeric config window falls back to the assumed 200K" || no "bad config window broke the fallback"
+OUT="$(run_cw c5)"
+grep -q "760K of a 1M window" <<< "$OUT" && [ ! -s "$CW_TMP/err" ] && ok "a non-numeric config window falls back to 1M" || no "bad config window broke the fallback: err=$(cat "$CW_TMP/err") out=$OUT"
 printf '{"components":{},"context_warning":{"window":"0200000"}}' > "$R/.claude/harness.json"
-grep -q "crossed 170K" <<< "$(run_cw c5)" && [ ! -s "$CW_TMP/err" ] && ok "a zero-padded config window is ignored quietly" || no "config window 0200000 not handled: $(cat "$CW_TMP/err")"
+OUT="$(run_cw c6)"
+grep -q "760K of a 1M window" <<< "$OUT" && [ ! -s "$CW_TMP/err" ] && ok "a zero-padded config window is ignored quietly" || no "config window 0200000 not handled: err=$(cat "$CW_TMP/err") out=$OUT"
 printf '{"components":{}}' > "$R/.claude/harness.json"
 n=0
 for CW_WINDOW in 08 0200000 12345678901234567890; do
   n=$((n+1)); OUT="$(run_cw "e$n")"; rc=$?
-  [ "$rc" = 0 ] && [ ! -s "$CW_TMP/err" ] && grep -q "crossed 170K" <<< "$OUT" \
-    && ok "HARNESS_CONTEXT_WINDOW=$CW_WINDOW is ignored: exit 0, no stderr, assumed 200K" \
+  [ "$rc" = 0 ] && [ ! -s "$CW_TMP/err" ] && grep -q "760K of a 1M window" <<< "$OUT" \
+    && ok "HARNESS_CONTEXT_WINDOW=$CW_WINDOW is ignored: exit 0, no stderr, 1M window" \
     || no "HARNESS_CONTEXT_WINDOW=$CW_WINDOW: rc=$rc err=$(cat "$CW_TMP/err") out=$OUT"
 done
 CW_WINDOW=""
