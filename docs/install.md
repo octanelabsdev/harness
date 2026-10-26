@@ -147,13 +147,40 @@ So the update is:
 ```
 
 `/plugin marketplace update` fetches whatever `ref` settings currently pins — on its own it does **not**
-move you to a newer tag; the `--apply` bump is what crosses tags. For a **fleet**, re-run the installer
-instead (it re-pins each repo's committed settings):
+move you to a newer tag; the `--apply` bump is what crosses tags.
+
+**A fleet of repos.** `tools/fleet_repin.sh` opens one re-pin PR per repo. List the repos in a file,
+one per line, with the branch the PR should target. The base branch is required, not guessed:
 
 ```sh
-~/harness/install.sh --ref v0.3.0 --yes .     # rewrites settings.json to the new tag (+ its sha)
-for r in ~/dev/*; do ~/harness/install.sh --ref v0.3.0 --yes "$r"; done
+# ~/.config/harness/fleet.txt
+~/dev/storefront   main
+~/dev/billing      develop
 ```
+
+```sh
+~/harness/tools/fleet_repin.sh v0.3.0 ~/.config/harness/fleet.txt
+```
+
+For each repo it:
+
+- works in a detached temporary worktree off `origin/<base>`, so your checkout's files, branches
+  and current branch are left alone (the PR branch exists only on `origin`);
+- pins `ref` to the tag and `sha` to the tag's commit, resolved with `git ls-remote` (an unknown tag
+  stops the run before any repo is touched);
+- commits and pushes under the repo's own Ruby (`.ruby-version`, or `ruby` in `.tool-versions`, via
+  `mise exec`), so Ruby git hooks load the right gems; a Ruby that isn't installed fails that repo;
+- opens the PR only after `ls-remote` shows the pushed commit on `origin`, then reads the pin back
+  from the PR head on GitHub;
+- skips a repo whose base branch already pins the tag and sha.
+
+Branches are named `chore/harness-<tag>-<sha7>`; an existing one on `origin` fails that repo rather
+than being reused. A failed repo is reported and the rest still run (exit `1`). Running CI and
+merging the PRs are separate steps. It needs `git`, `jq`, `gh` (authenticated) and, for Ruby repos,
+`mise`.
+
+Without PRs, the installer rewrites a checkout's pin in place:
+`~/harness/install.sh --ref v0.3.0 --yes /path/to/repo`.
 
 **What the pin actually guarantees (ref, and the sha caveat).** A `ref` pin freezes the marketplace at
 that tag's commit and disables auto-update — verified. The installer *also* records the tag's **commit
