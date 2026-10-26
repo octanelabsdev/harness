@@ -1288,11 +1288,33 @@ So the update is:</p>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>/harness:update                      # confirm: should report up to date
 </code></pre></div>
 <p><code>/plugin marketplace update</code> fetches whatever <code>ref</code> settings currently pins — on its own it does <strong>not</strong>
-move you to a newer tag; the <code>--apply</code> bump is what crosses tags. For a <strong>fleet</strong>, re-run the installer
-instead (it re-pins each repo's committed settings):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>~/harness/install.sh<span class="w"> </span>--ref<span class="w"> </span>v0.3.0<span class="w"> </span>--yes<span class="w"> </span>.<span class="w">     </span><span class="c1"># rewrites settings.json to the new tag (+ its sha)</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">for</span><span class="w"> </span>r<span class="w"> </span><span class="k">in</span><span class="w"> </span>~/dev/*<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>~/harness/install.sh<span class="w"> </span>--ref<span class="w"> </span>v0.3.0<span class="w"> </span>--yes<span class="w"> </span><span class="s2">"</span><span class="nv">$r</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+move you to a newer tag; the <code>--apply</code> bump is what crosses tags.</p>
+<p><strong>A fleet of repos.</strong> <code>tools/fleet_repin.sh</code> opens one re-pin PR per repo. List the repos in a file,
+one per line, with the branch the PR should target. The base branch is required, not guessed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># ~/.config/harness/fleet.txt</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>~/dev/storefront<span class="w">   </span>main
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>~/dev/billing<span class="w">      </span>develop
 </code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>~/harness/tools/fleet_repin.sh<span class="w"> </span>v0.3.0<span class="w"> </span>~/.config/harness/fleet.txt
+</code></pre></div>
+<p>For each repo it:</p>
+<ul>
+<li>works in a detached temporary worktree off <code>origin/&lt;base&gt;</code>, so your checkout's files, branches
+  and current branch are left alone (the PR branch exists only on <code>origin</code>);</li>
+<li>pins <code>ref</code> to the tag and <code>sha</code> to the tag's commit, resolved with <code>git ls-remote</code> (an unknown tag
+  stops the run before any repo is touched);</li>
+<li>commits and pushes under the repo's own Ruby (<code>.ruby-version</code>, or <code>ruby</code> in <code>.tool-versions</code>, via
+  <code>mise exec</code>), so Ruby git hooks load the right gems; a Ruby that isn't installed fails that repo;</li>
+<li>opens the PR only after <code>ls-remote</code> shows the pushed commit on <code>origin</code>, then reads the pin back
+  from the PR head on GitHub;</li>
+<li>skips a repo whose base branch already pins the tag and sha.</li>
+</ul>
+<p>Branches are named <code>chore/harness-&lt;tag&gt;-&lt;sha7&gt;</code>; an existing one on <code>origin</code> fails that repo rather
+than being reused. A failed repo is reported and the rest still run (exit <code>1</code>). Running CI and
+merging the PRs are separate steps. It needs <code>git</code>, <code>jq</code>, <code>gh</code> (authenticated) and, for Ruby repos,
+<code>mise</code>.</p>
+<p>Without PRs, the installer rewrites a checkout's pin in place:
+<code>~/harness/install.sh --ref v0.3.0 --yes /path/to/repo</code>.</p>
 <p><strong>What the pin actually guarantees (ref, and the sha caveat).</strong> A <code>ref</code> pin freezes the marketplace at
 that tag's commit and disables auto-update — verified. The installer <em>also</em> records the tag's <strong>commit
 sha</strong> (<code>--no-sha</code> opts out; <code>--sha SHA</code> sets it explicitly), but <strong>only the <code>ref</code> is observably enforced
@@ -1302,8 +1324,8 @@ the next reload. Protect your release tags (and the account: 2FA, branch/tag pro
 sha, is the real supply-chain mitigation. A branch/channel ref (<code>main</code>, <code>stable</code>) is left at ref-only so
 it can still move.</p>
 <h2 id="uninstalling">Uninstalling<a class="headerlink" href="#uninstalling" title="Permanent link">&para;</a></h2>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>/plugin<span class="w"> </span>disable<span class="w"> </span>harness@harness<span class="w">        </span><span class="c1"># stop the hooks/skills</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>/plugin<span class="w"> </span>uninstall<span class="w"> </span>harness@harness<span class="w">      </span><span class="c1"># remove it</span>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>/plugin<span class="w"> </span>disable<span class="w"> </span>harness@harness<span class="w">        </span><span class="c1"># stop the hooks/skills</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>/plugin<span class="w"> </span>uninstall<span class="w"> </span>harness@harness<span class="w">      </span><span class="c1"># remove it</span>
 </code></pre></div>
 Then delete <code>.claude/harness.json</code> and the harness keys from <code>.claude/settings.json</code> if you want it
 fully gone.</p>
