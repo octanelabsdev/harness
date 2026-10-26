@@ -175,9 +175,39 @@ For each repo it:
 - skips a repo whose base branch already pins the tag and sha.
 
 Branches are named `chore/harness-<tag>-<sha7>`; an existing one on `origin` fails that repo rather
-than being reused. A failed repo is reported and the rest still run (exit `1`). Running CI and
-merging the PRs are separate steps. It needs `git`, `jq`, `gh` (authenticated) and, for Ruby repos,
-`mise`.
+than being reused. A failed repo is reported and the rest still run (exit `1`). It needs `git`,
+`jq`, `gh` (authenticated) and, for Ruby repos, `mise`.
+
+**CI for those PRs.** `tools/fleet_ci.sh` runs `bin/ci` on one branch across the same fleet file, one
+suite at a time:
+
+```sh
+~/harness/tools/fleet_ci.sh chore/harness-v0.3.0-1a2b3c4 ~/.config/harness/fleet.txt
+```
+
+A fresh checkout lacks ignored files and built assets, so a fleet line can end with a setup command.
+It runs in the checkout before `bin/ci`, with `$CHECKOUT` pointing at your real checkout:
+
+```sh
+~/dev/storefront   main      ln -s "$CHECKOUT/config/master.key" config/ && bundle install --quiet
+~/dev/billing      develop   ln -s "$CHECKOUT/.env" . && yarn install && yarn build
+```
+
+For each repo that has the branch on `origin` (others are skipped; an `origin` that can't be reached
+fails the repo rather than skipping it), it:
+
+- waits until no other test suite (`bin/ci`, `rspec`, `rails test`, `rails test:system`) is running
+  anywhere on the machine, up to 30 minutes; suites in different repos still fight over browsers and
+  databases. If the process list can't be read, the repo is not run;
+- checks the branch out tracking `origin` in a temporary worktree, so `gh signoff` in `bin/ci` can
+  stamp it, and removes the worktree and its local branch afterwards, including after Ctrl-C;
+- runs `bin/ci` under the repo's Ruby through `tools/run_tests.sh`, which also waits for the repo's
+  own test lock;
+- reports green or red and the PR's `signoff` status, or why the suite didn't run. Logs are kept
+  and their path printed; a run that times out (after an hour, by default) keeps only its last 200
+  lines.
+
+It never merges. Exit `1` if any repo failed.
 
 Without PRs, the installer rewrites a checkout's pin in place:
 `~/harness/install.sh --ref v0.3.0 --yes /path/to/repo`.
