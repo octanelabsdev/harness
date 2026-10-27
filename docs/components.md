@@ -132,7 +132,7 @@ item's ID with one line of evidence.
 
 | Trigger | Playbook |
 |---|---|
-| first edit of a file this session | CODE |
+| first edit of a file this session (C0: a change someone sees is traced from its entrypoint first; a ticket's "X builds this" is a claim) | CODE |
 | dates/times, float money, async, sort, division, regex, mutation, closures | TRAPS |
 | a failed command/test, a traceback, output contradicting a prediction | DEBUG |
 | about to claim done / commit / open a PR | VERIFY |
