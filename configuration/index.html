@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -54,6 +54,8 @@
     
     
       <link rel="stylesheet" href="../stylesheets/syntax.css">
+    
+      <link rel="stylesheet" href="../stylesheets/benchmarks.css">
     
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -812,6 +814,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -826,10 +855,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -847,8 +876,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1023,24 +1052,25 @@ enforcing gates stay inert.</p>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    "context_warning":   true,   // UserPromptSubmit warning at 75/85/95% of the context window (default on)
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  },
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  "context_warning": { "window": 1000000 },     // optional: context window in tokens for the warning steps
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  "stack": {
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    "name": "rails",                            // label, shown in the banner
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    "impl_dirs":  ["app", "lib", "db/migrate"], // the "implementation surface" the gates care about
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    "ui_dirs":    ["app/views", "app/controllers"], // subset whose change should ship an operator test
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    "test_dir":   "test",                       // where unit/integration tests live
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    "test_command": "auto",                     // how to run the suite ("auto" = detect, "" = unknown)
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    "test_timeout_sec": 600,                    // optional: kill a gate test run after this long
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    "test_lock_wait_sec": 600,                  // optional: how long to wait for another session's run
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    "agents_bundle": {                          // optional: default agent bundle for /harness:agents
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>      "repo": "octanelabsdev/rails-agents",     //   owner/name slug or git URL
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>      "glob": ["rails-*.md", "dhh-code-reviewer.md"] // which files in the bundle are agents
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    }
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>  }
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>}
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied once (default on)
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  },
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  "context_warning": { "window": 1000000 },     // optional: context window in tokens for the warning steps
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  "stack": {
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    "name": "rails",                            // label, shown in the banner
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    "impl_dirs":  ["app", "lib", "db/migrate"], // the "implementation surface" the gates care about
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    "ui_dirs":    ["app/views", "app/controllers"], // subset whose change should ship an operator test
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    "test_dir":   "test",                       // where unit/integration tests live
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    "test_command": "auto",                     // how to run the suite ("auto" = detect, "" = unknown)
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    "test_timeout_sec": 600,                    // optional: kill a gate test run after this long
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    "test_lock_wait_sec": 600,                  // optional: how long to wait for another session's run
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    "agents_bundle": {                          // optional: default agent bundle for /harness:agents
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>      "repo": "octanelabsdev/rails-agents",     //   owner/name slug or git URL
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>      "glob": ["rails-*.md", "dhh-code-reviewer.md"] // which files in the bundle are agents
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    }
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>  }
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>}
 </code></pre></div>
 <h3 id="field-semantics">Field semantics<a class="headerlink" href="#field-semantics" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1063,8 +1093,9 @@ enforcing gates stay inert.</p>
   test database mid-run. The first kills a run that takes longer; the second is how long to wait for
   another session's run before blocking as UNVERIFIED. Both are trimmed to fit the Stop hook's 1800s
   timeout (see <a href="../components/">components.md</a>).</li>
-<li><strong><code>components</code></strong> — the toggleable hooks honor these. <code>session_banner</code>, <code>skill_nudge</code> and <code>context_warning</code>
-  default to <strong>on</strong> unless set to <code>false</code>; the gates (<code>verification_gate</code>, <code>pipeline_gate</code>, <code>review_gate</code>) default
+<li><strong><code>components</code></strong> — the toggleable hooks honor these. <code>session_banner</code>, <code>skill_nudge</code>, <code>context_warning</code> and
+  <code>guardrails_gate</code> default to <strong>on</strong> unless set to <code>false</code> (the guardrails gate denies at most once per
+  context, so it can't wedge a session); the gates (<code>verification_gate</code>, <code>pipeline_gate</code>, <code>review_gate</code>) default
   <strong>off</strong> when unconfigured. When on, the pipeline gate runs in <strong>warn</strong> mode, and the verification gate
   <strong>blocks</strong> on a <code>test_command</code> failure (opt down with <code>.claude/.verification-warn</code>). <code>review_gate</code>
   (also part of the verification-gate Stop hook, opt-in) additionally requires a <strong>verified blind-review
@@ -1278,10 +1309,10 @@ and component choices. It contains no secrets and no machine paths — only your
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.sections", "navigation.footer", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.sections", "navigation.footer", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

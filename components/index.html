@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -54,6 +54,8 @@
     
     
       <link rel="stylesheet" href="../stylesheets/syntax.css">
+    
+      <link rel="stylesheet" href="../stylesheets/benchmarks.css">
     
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -740,6 +742,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#guardrails-gate-guardrails_gate-pretooluse-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guardrails gate (guardrails_gate) — PreToolUse hook
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -906,6 +919,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -920,10 +960,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -941,8 +981,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1085,6 +1125,17 @@
     <span class="md-ellipsis">
       
         Pipeline gate (pipeline_gate) — PreToolUse hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#guardrails-gate-guardrails_gate-pretooluse-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guardrails gate (guardrails_gate) — PreToolUse hook
       
     </span>
   </a>
@@ -1299,6 +1350,16 @@ compared a model-written marker to HEAD and couldn't tell a real review from a c
 <p>Tests, config, docs, and <code>.claude/</code> are never gated. <strong>Warn</strong> by default (advises without deciding —
 it never auto-approves the edit); <code>touch .claude/.pipeline-block</code> to <strong>block</strong>. Inert unless
 <code>components.pipeline_gate</code> is <code>true</code>.</p>
+<h3 id="guardrails-gate-guardrails_gate-pretooluse-hook">Guardrails gate (<code>guardrails_gate</code>) — PreToolUse hook<a class="headerlink" href="#guardrails-gate-guardrails_gate-pretooluse-hook" title="Permanent link">&para;</a></h3>
+<p>The first edit in a session (or in a subagent) waits until the <code>guardrails</code> skill is loaded. If the
+transcript has no <code>guardrails</code> Skill call, the first <code>Edit</code>/<code>Write</code>/<code>MultiEdit</code>/<code>NotebookEdit</code>, or
+the first Bash command that writes files (<code>sed -i</code>, a redirect, <code>cp</code>/<code>mv</code>/<code>rm</code>, a script write), is
+<strong>denied once</strong> with a reason telling the agent to load the skill and run CODE. The retry always goes
+through, so an agent that can't load the skill is never stuck.</p>
+<p>Why it exists: in harness-bench runs, a third of agents never loaded guardrails despite the
+SessionStart nudge. They edited through <code>sed -i</code> and heredocs, where no file-tool hook fires, and
+they were the runs that took the bait. <strong>On</strong> by default; set <code>components.guardrails_gate</code> to <code>false</code>
+to turn it off.</p>
 <blockquote>
 <p>Both gates read the <em>stack profile</em>, so "implementation surface" and "operator test" mean whatever
 your stack says — see <a href="../configuration/">configuration.md</a>.</p>
@@ -1321,7 +1382,7 @@ item's ID with one line of evidence.</p>
 </thead>
 <tbody>
 <tr>
-<td>first edit of a file this session</td>
+<td>first edit of a file this session (C0: a change someone sees is traced from its entrypoint first; a ticket's "X builds this" is a claim)</td>
 <td>CODE</td>
 </tr>
 <tr>
@@ -1515,10 +1576,10 @@ re-checks against the diff. Load it when <code>review_gate</code> is on, or any 
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.sections", "navigation.footer", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.sections", "navigation.footer", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>
