@@ -1,0 +1,65 @@
+/* Benchmarks page. Series colors are the dataviz reference palette's first three categorical slots,
+   validated on this site's surfaces (light #ffffff, dark #0f172b); the baseline is neutral gray. Light
+   aqua sits under 3:1 on white, so every bar carries its value as text and each chart has a table view.
+   Verdict chips use the reserved status colors on the icon only, always with a text label. */
+:root {
+  --viz-text: #0f172b;
+  --viz-muted: #62748e;
+  --viz-grid: #e2e8f0;
+  --viz-card: #f8fafc;
+  --viz-base: #77756f;
+  --viz-s1: #2a78d6;
+  --viz-s2: #eb6834;
+  --viz-s3: #1baf7a;
+  --viz-good: #0ca30c;
+  --viz-bad: #d03b3b;
+}
+[data-md-color-scheme="slate"] {
+  --viz-text: #cad5e2;
+  --viz-muted: #90a1b9;
+  --viz-grid: #314158;
+  --viz-card: #1d293d;
+  --viz-base: #90a1b9;
+  --viz-s1: #3987e5;
+  --viz-s2: #d95926;
+  --viz-s3: #199e70;
+}
+
+.md-typeset .viz-figure { display: block; width: 100%; max-width: 100%; margin: 1.25rem 0 0.5rem; }
+.md-typeset .viz-figure figcaption { font-weight: 600; text-align: left; margin: 0 0 0.5rem; max-width: none; }
+.viz { width: 100%; height: auto; font-family: var(--md-text-font-family, Inter, sans-serif); }
+.viz text { font-size: 12px; fill: var(--viz-text); }
+.viz .muted { fill: var(--viz-muted); font-size: 11px; }
+.viz .value { fill: var(--viz-text); font-size: 11px; font-variant-numeric: tabular-nums; }
+.viz g:hover .bar { opacity: 0.8; }
+
+.bar.base { fill: var(--viz-base); }
+.bar.s1 { fill: var(--viz-s1); }
+.bar.s2 { fill: var(--viz-s2); }
+.bar.s3 { fill: var(--viz-s3); }
+
+.viz-swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; flex: none; }
+.viz-swatch.base { background: var(--viz-base); }
+.viz-swatch.s1 { background: var(--viz-s1); }
+.viz-swatch.s2 { background: var(--viz-s2); }
+.viz-swatch.s3 { background: var(--viz-s3); }
+.viz-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.75rem; }
+.viz-key { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+.viz-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.8rem; margin: 1rem 0; }
+.viz-card { background: var(--viz-card); border: 1px solid var(--viz-grid); border-radius: 0.5rem; padding: 0.7rem 0.8rem; font-size: 0.75rem; }
+.viz-card-title { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.4rem; }
+.viz-card-title .hint { font-weight: 400; color: var(--viz-muted); }
+.viz-card-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; padding: 0.25rem 0; border-top: 1px solid var(--viz-grid); }
+.viz-card-row.base { border-top: none; }
+.viz-card-row .who { flex: 1 1 7rem; }
+.viz-card-row .val { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.viz-card-row .vs, .viz-card-row .delta { color: var(--viz-muted); font-variant-numeric: tabular-nums; }
+
+.viz-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0 0.45rem; border: 1px solid var(--viz-grid); border-radius: 999px; font-size: 0.7rem; white-space: nowrap; color: var(--viz-text); }
+.viz-chip.better span { color: var(--viz-good); }
+.viz-chip.worse span { color: var(--viz-bad); }
+.viz-chip.unsure span { color: var(--viz-muted); }
+
+.viz-meta { color: var(--md-default-fg-color--light); font-size: 0.75rem; }
+.md-typeset .viz-table { margin-top: 0.5rem; }
