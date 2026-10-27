@@ -681,5 +681,46 @@ OUT="$(TMPDIR="$CW_TMP" CLAUDE_PROJECT_DIR="$R" env -u HARNESS_CONTEXT_WINDOW ba
 [ "$rc" = 0 ] && [ -z "$OUT" ] && ok "a missing transcript exits 0 silently" || no "missing transcript: rc=$rc out=$OUT"
 rm -rf "$R" "$CW_TMP"
 
+# ---- guardrails_gate (PreToolUse) ----
+echo "guardrails_gate:"
+R="$(mkrepo '{"components":{}}')"
+GG_TMP="$(mktemp -d "${TMPDIR:-/tmp}/harness-ggtest.XXXXXX")"
+T="$R/transcript.jsonl"; : > "$T"
+run_gg() { # run_gg <session> <tool> <tool_input json> [agent_id] -> hook stdout
+  TMPDIR="$GG_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/guardrails_gate.sh" <<< \
+    "$(jq -nc --arg s "$1" --arg t "$2" --argjson i "$3" --arg a "${4:-}" --arg p "$T" '{session_id:$s,agent_id:$a,tool_name:$t,tool_input:$i,transcript_path:$p}')"
+}
+denied() { [ "$(jq -r '.hookSpecificOutput.permissionDecision // "none"' <<< "$1" 2>/dev/null)" = deny ]; }
+
+OUT="$(run_gg s1 Edit '{"file_path":"app/x.rb"}')"
+denied "$OUT" && grep -q "harness:guardrails" <<< "$OUT" && ok "first Edit without guardrails loaded is denied, naming the skill" || no "first Edit not denied: $OUT"
+OUT="$(run_gg s1 Edit '{"file_path":"app/x.rb"}')"
+[ -z "$OUT" ] && ok "the retry goes through: the gate fires once per session" || no "second Edit denied again: $OUT"
+OUT="$(run_gg s1 Edit '{"file_path":"app/x.rb"}' sub1)"
+denied "$OUT" && ok "a subagent's first edit gets its own single deny" || no "subagent first edit not denied: $OUT"
+
+OUT="$(run_gg s2 Bash '{"command":"sed -i s/a/b/ app/models/book/exporter.rb"}')"
+denied "$OUT" && ok "a first edit through Bash (sed -i) is denied too" || no "sed -i not caught: $OUT"
+for cmd in "cat > app/x.rb <<EOF" "python3 - <<'E'\nopen(p,'w').write(s)\nE" "cp a.rb b.rb" "echo x >> log.txt"; do
+  n=$((${n:-0}+1)); OUT="$(run_gg "w$n" Bash "$(jq -nc --arg c "$(printf '%b' "$cmd")" '{command:$c}')")"
+  denied "$OUT" && ok "Bash write is an edit: $cmd" || no "Bash write missed: $cmd"
+done
+for cmd in "cat app/models/book.rb" "grep -rn \"a > b\" app" "bin/rails test 2>&1 | tail -5" "ls > /dev/null" "git diff"; do
+  n=$((n+1)); OUT="$(run_gg "r$n" Bash "$(jq -nc --arg c "$cmd" '{command:$c}')")"
+  [ -z "$OUT" ] && ok "Bash read is not an edit: $cmd" || no "Bash read treated as an edit: $cmd"
+done
+OUT="$(run_gg s3 Read '{"file_path":"app/x.rb"}')"
+[ -z "$OUT" ] && ok "non-edit tools pass" || no "Read was gated: $OUT"
+
+printf '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"harness:guardrails"}}]}}\n' > "$T"
+OUT="$(run_gg s4 Edit '{"file_path":"app/x.rb"}')"
+[ -z "$OUT" ] && ok "with guardrails loaded, the first edit passes" || no "edit denied after guardrails loaded: $OUT"
+: > "$T"
+
+printf '{"components":{"guardrails_gate":false}}' > "$R/.claude/harness.json"
+OUT="$(run_gg s5 Edit '{"file_path":"app/x.rb"}')"
+[ -z "$OUT" ] && ok "components.guardrails_gate:false turns it off" || no "toggle off still denied: $OUT"
+rm -rf "$R" "$GG_TMP"
+
 echo
 if [ "$fail" = 0 ]; then echo "OK: hook tests passed ($pass)."; exit 0; else echo "FAIL: $fail hook test(s), $pass passed." >&2; exit 1; fi

@@ -20,7 +20,7 @@ stronger in combination.
      Definition-of-Ready story (or an explicit small-fix escape hatch).
 
 3. **Guardrails** (a skill) — eight short, event-triggered playbooks the model reads the moment a
-   known failure pattern is about to happen: `CODE` (before the first edit), `DEBUG` (a failed
+   known failure pattern is about to happen: `CODE` (before the first edit — trace a user-visible change from its entrypoint, not from where a ticket says it lives), `DEBUG` (a failed
    command), `VERIFY` (before claiming done), `TRAPS` (language footguns), `RUNTIME` (asserting a
    path is live/costly), `MECHANISM` (concluding code is wrong or planning on external behavior),
    `PRECEDENT` (following or extending existing code — classify its history, check it against current practice), `SCOPE`

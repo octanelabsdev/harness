@@ -115,6 +115,18 @@ Tests, config, docs, and `.claude/` are never gated. **Warn** by default (advise
 it never auto-approves the edit); `touch .claude/.pipeline-block` to **block**. Inert unless
 `components.pipeline_gate` is `true`.
 
+### Guardrails gate (`guardrails_gate`) — PreToolUse hook
+The first edit in a session (or in a subagent) waits until the `guardrails` skill is loaded. If the
+transcript has no `guardrails` Skill call, the first `Edit`/`Write`/`MultiEdit`/`NotebookEdit`, or
+the first Bash command that writes files (`sed -i`, a redirect, `cp`/`mv`/`rm`, a script write), is
+**denied once** with a reason telling the agent to load the skill and run CODE. The retry always goes
+through, so an agent that can't load the skill is never stuck.
+
+Why it exists: in harness-bench runs, a third of agents never loaded guardrails despite the
+SessionStart nudge. They edited through `sed -i` and heredocs, where no file-tool hook fires, and
+they were the runs that took the bait. **On** by default; set `components.guardrails_gate` to `false`
+to turn it off.
+
 > Both gates read the *stack profile*, so "implementation surface" and "operator test" mean whatever
 > your stack says — see [configuration.md](configuration.md).
 
@@ -132,7 +144,7 @@ item's ID with one line of evidence.
 
 | Trigger | Playbook |
 |---|---|
-| first edit of a file this session | CODE |
+| first edit of a file this session (C0: a change someone sees is traced from its entrypoint first; a ticket's "X builds this" is a claim) | CODE |
 | dates/times, float money, async, sort, division, regex, mutation, closures | TRAPS |
 | a failed command/test, a traceback, output contradicting a prediction | DEBUG |
 | about to claim done / commit / open a PR | VERIFY |
