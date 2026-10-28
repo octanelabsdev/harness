@@ -22,7 +22,7 @@ at list price.
 95% interval excludes zero). <span class="viz-chip unsure">≈ Too close to call</span> means we can't
 tell yet with this many runs, however big the gap looks.
 
-<p class="viz-meta">351 graded tasks · $115.41 at list price · Claude Sonnet 5.5 at medium effort unless a section says otherwise · updated 2026-10-27</p>
+<p class="viz-meta">351 graded tasks · $115.41 at list price · Claude Sonnet 5.5 at medium effort unless a section says otherwise · updated 2026-10-28</p>
 
 ## Confirmatory run
 
@@ -211,6 +211,7 @@ A difference is real only when its whole 95% interval sits on one side of zero. 
 - "Said done, but wasn't" didn't move. On the stalled-card task the agents grounded "activity" in the column the code names for it, said in their report that ticking off a step doesn't count, and shipped; the hidden checks count steps. A person reading that report would catch it; a headless run can't.
 - The evidence check and term grounding cost about 6¢ a task more than the gate alone, and in this run made no difference anyone could measure on top of it.
 - Opus 5.5 passed every trap without the harness, so on Opus the harness had nothing to fix there and only added cost. The traps are tuned to tempt Sonnet; harder ones are needed to see whether Opus slips.
-- Haiku 5.5 sometimes walked through the gate: in 4 of 29 runs it retried the refused edit instead of loading the guardrails skill first, and loaded it a few steps later. Sonnet and Opus complied every time.
+- Haiku 5.5 sometimes walked through the gate: in 4 of 29 runs it retried the refused edit instead of loading the guardrails skill first, and loaded it a few steps later. Sonnet and Opus complied every time. v0.2.15 keeps refusing until the skill loads (at most three times): on the same Haiku tasks, no run edited before loading it (0 of 29), with no measurable change in the four scores or cost.
+- In these runs the v0.2.14 gate refused the first edit even when the guardrails skill was already loaded. It looked for the skill in the session transcript, and headless bench runs don't save one; interactive sessions do. So the harness arms above measure "refuse the first edit once", which costs an agent that loaded the skill first one wasted step.
 - The traps are written to tempt grounding failures. They show *where* the harness changes behavior, not how often that happens in everyday work.
 - Runs where the setup itself failed (the harness didn't load, the sandbox misbehaved) are excluded, never scored as agent failures.
