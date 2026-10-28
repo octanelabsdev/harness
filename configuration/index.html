@@ -1052,7 +1052,7 @@ enforcing gates stay inert.</p>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    "context_warning":   true,   // UserPromptSubmit warning at 75/85/95% of the context window (default on)
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied once (default on)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied up to 3 times (default on)
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  },
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  "context_warning": { "window": 1000000 },     // optional: context window in tokens for the warning steps
@@ -1094,7 +1094,7 @@ enforcing gates stay inert.</p>
   another session's run before blocking as UNVERIFIED. Both are trimmed to fit the Stop hook's 1800s
   timeout (see <a href="../components/">components.md</a>).</li>
 <li><strong><code>components</code></strong> — the toggleable hooks honor these. <code>session_banner</code>, <code>skill_nudge</code>, <code>context_warning</code> and
-  <code>guardrails_gate</code> default to <strong>on</strong> unless set to <code>false</code> (the guardrails gate denies at most once per
+  <code>guardrails_gate</code> default to <strong>on</strong> unless set to <code>false</code> (the guardrails gate denies at most three times per
   context, so it can't wedge a session); the gates (<code>verification_gate</code>, <code>pipeline_gate</code>, <code>review_gate</code>) default
   <strong>off</strong> when unconfigured. When on, the pipeline gate runs in <strong>warn</strong> mode, and the verification gate
   <strong>blocks</strong> on a <code>test_command</code> failure (opt down with <code>.claude/.verification-warn</code>). <code>review_gate</code>
