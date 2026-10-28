@@ -15,13 +15,14 @@
 #
 # Modes:
 #   (no args) | --check   read-only: report installed vs latest tag. exit 0 up-to-date, 10 newer available.
-#   --apply               bump the pin in the settings file that declares the marketplace, then print the
-#                         reload instruction. exit 0 on bump/up-to-date, non-zero on error.
+#   --apply               bump the pin in this project's settings (the main checkout's from a worktree), then
+#                         print the reload instruction. Never rewrites user settings. exit 0 on bump/up-to-date, non-zero on error.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN="$(cd "$HERE/.." && pwd)"
 
 MKT_NAME="harness"; MKT_REPO="octanelabsdev/harness"   # matches install.sh (self-referencing marketplace)
+REPO_URL="${HARNESS_REPO_URL:-https://github.com/$MKT_REPO}"
 MODE="check"
 case "${1:-}" in
   --apply) MODE="apply";;
@@ -34,7 +35,7 @@ esac
 CUR="$(jq -r '.version // empty' "$PLUGIN/.claude-plugin/plugin.json" 2>/dev/null)"
 
 # Latest release tag upstream (highest vN.N.N). Network; degrade gracefully offline.
-LATEST_TAG="$(git ls-remote --tags --refs "https://github.com/$MKT_REPO" 2>/dev/null \
+LATEST_TAG="$(git ls-remote --tags --refs "$REPO_URL" 2>/dev/null \
   | sed 's#.*refs/tags/##' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
 
 if [ -z "$LATEST_TAG" ]; then
@@ -64,8 +65,16 @@ if [ "$MODE" = check ]; then
 fi
 
 # --- apply: find the settings file that declares the marketplace, bump ref (+sha), print reload note ---
-repo_root="$(git -C "${CLAUDE_PROJECT_DIR:-$PWD}" rev-parse --show-toplevel 2>/dev/null || printf '%s' "${CLAUDE_PROJECT_DIR:-$PWD}")"
-CANDIDATES=("$repo_root/.claude/settings.json" "$repo_root/.claude/settings.local.json" "$HOME/.claude/settings.json")
+# Only project settings are bumped. A worktree may lack an untracked .claude/settings.json, so the main
+# checkout's is checked too. User settings are never rewritten: a ref there that differs from how the
+# marketplace was added makes Claude Code ignore the marketplace in every repo (seen 2026-10-28).
+start="${CLAUDE_PROJECT_DIR:-$PWD}"
+repo_root="$(git -C "$start" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$start")"
+common="$(git -C "$start" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+main_root="${common%/.git}"
+CANDIDATES=("$repo_root/.claude/settings.json" "$repo_root/.claude/settings.local.json")
+[ -n "$common" ] && [ "$main_root" != "$repo_root" ] &&
+  CANDIDATES+=("$main_root/.claude/settings.json" "$main_root/.claude/settings.local.json")
 TARGET_SETTINGS=""
 for f in "${CANDIDATES[@]}"; do
   [ -f "$f" ] || continue
@@ -74,13 +83,14 @@ for f in "${CANDIDATES[@]}"; do
   fi
 done
 if [ -z "$TARGET_SETTINGS" ]; then
-  echo "  ✘ no settings.json declares the '$MKT_NAME' marketplace (looked in project + user scope)." >&2
-  echo "     run the installer to (re)establish the pin:  bash \"$PLUGIN/install.sh\" \"$repo_root\"" >&2
+  echo "  ✘ this project's settings don't declare the '$MKT_NAME' marketplace, so there's no pin to move." >&2
+  echo "     This never rewrites user settings: a ref there makes Claude Code ignore the marketplace everywhere." >&2
+  echo "     To pin this project:  bash \"$PLUGIN/install.sh\" \"$repo_root\"" >&2
   exit 3
 fi
 
 # Resolve the sha for the new tag (peeled), like install.sh; ref-only if unresolvable.
-NEW_SHA="$(git ls-remote "https://github.com/$MKT_REPO" "$LATEST_TAG" "$LATEST_TAG^{}" 2>/dev/null \
+NEW_SHA="$(git ls-remote "$REPO_URL" "$LATEST_TAG" "$LATEST_TAG^{}" 2>/dev/null \
   | awk '$2 ~ /\^\{\}$/ {peeled=$1} $2 !~ /\^\{\}$/ {plain=$1} END {print (peeled != "" ? peeled : plain)}')"
 
 if ! python3 - "$TARGET_SETTINGS" "$MKT_NAME" "$LATEST_TAG" "$NEW_SHA" <<'PY'

@@ -14,6 +14,15 @@ inert until the config exists — that's by design.
 The marketplace is the public repo. Use `octanelabsdev/harness` (GitHub shorthand) or the full URL.
 Behind a proxy/firewall, ensure github.com is reachable.
 
+## `Marketplace harness is added but ignored` in every repo
+`claude plugin list` shows `harness@harness … failed to load` with "Its source doesn't match its
+extraKnownMarketplaces entry in user or managed settings". The `harness` entry in your **user** settings
+(`~/.claude/settings.json`) has a `ref`/`sha` that the marketplace wasn't added with, so Claude Code
+ignores the marketplace everywhere. Remove `ref` and `sha` from that user entry, leaving
+`{"source": "github", "repo": "octanelabsdev/harness"}`, then restart. Pin versions in each project's
+`.claude/settings.json`, not in user settings. Before v0.2.16, `/harness:update --apply` could write
+that user entry when run from a worktree whose project settings file isn't tracked.
+
 ## Gates aren't firing
 - Check `.claude/harness.json` → `components`: the gate must be `true`. The two gates default **off**
   when unconfigured.
