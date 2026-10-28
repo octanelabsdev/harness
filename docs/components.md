@@ -122,7 +122,8 @@ the first Bash command that writes files (`sed -i`, a redirect, `cp`/`mv`/`rm`, 
 **denied** with a reason telling the agent to load the skill and run CODE. Retrying the edit without
 loading the skill is denied again, up to **three times** per session or subagent; the fourth attempt goes
 through, so an agent that can't load the skill is never stuck. (A single deny wasn't enough: Haiku 5.5
-retried straight through it in 4 of 29 bench runs.)
+retried straight through it in 4 of 29 bench runs.) The gate notices the skill load from the `Skill` call itself, so it
+works in headless runs with no saved transcript (`claude -p --no-session-persistence`).
 
 Why it exists: in harness-bench runs, a third of agents never loaded guardrails despite the
 SessionStart nudge. They edited through `sed -i` and heredocs, where no file-tool hook fires, and

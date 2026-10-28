@@ -29,22 +29,27 @@ bash_writes() {
   return 1
 }
 
+# Marks are per session and agent context: `<id>` counts denies, `<id>.loaded` records the skill load.
+marks="${TMPDIR:-/tmp}/harness-guardrails-gate"
+mkdir -p "$marks" 2>/dev/null || exit 0
+mark="$marks/$(field .session_id | tr -cd 'A-Za-z0-9_-')-$(field .agent_id | tr -cd 'A-Za-z0-9_-')"
+
+# The gate sees the Skill call itself, because headless runs (--no-session-persistence) have no transcript.
 case "$tool" in
+  Skill) [[ "$(field .tool_input.skill)" =~ ^(harness:)?guardrails$ ]] && : > "$mark.loaded" 2>/dev/null; exit 0 ;;
   Edit|Write|MultiEdit|NotebookEdit) ;;
   Bash) bash_writes "$(field .tool_input.command)" || exit 0 ;;
   *) exit 0 ;;
 esac
 
+[ -e "$mark.loaded" ] && exit 0
 transcript=$(field .transcript_path)
 if [ -n "$transcript" ] && [ -f "$transcript" ] &&
    grep -qE '"skill"[[:space:]]*:[[:space:]]*"(harness:)?guardrails"' "$transcript"; then
   exit 0
 fi
 
-# Denies are counted per session and agent context; the fourth attempt goes through.
-marks="${TMPDIR:-/tmp}/harness-guardrails-gate"
-mkdir -p "$marks" 2>/dev/null || exit 0
-mark="$marks/$(field .session_id | tr -cd 'A-Za-z0-9_-')-$(field .agent_id | tr -cd 'A-Za-z0-9_-')"
+# The fourth attempt goes through, so an agent that can't load the skill isn't stuck.
 denies=0; [ -f "$mark" ] && denies=$(wc -c < "$mark" | tr -d ' ')
 [ "$denies" -ge 3 ] && exit 0
 printf x >> "$mark" 2>/dev/null || exit 0
