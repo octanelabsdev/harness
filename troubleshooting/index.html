@@ -866,6 +866,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#marketplace-harness-is-added-but-ignored-in-every-repo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Marketplace harness is added but ignored in every repo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#gates-arent-firing" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1073,6 +1084,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#marketplace-harness-is-added-but-ignored-in-every-repo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Marketplace harness is added but ignored in every repo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#gates-arent-firing" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1238,6 +1260,14 @@ inert until the config exists — that's by design.</p>
 <h2 id="claude-plugin-install-marketplace-add-cant-find-it"><code>claude plugin install</code> / <code>marketplace add</code> can't find it<a class="headerlink" href="#claude-plugin-install-marketplace-add-cant-find-it" title="Permanent link">&para;</a></h2>
 <p>The marketplace is the public repo. Use <code>octanelabsdev/harness</code> (GitHub shorthand) or the full URL.
 Behind a proxy/firewall, ensure github.com is reachable.</p>
+<h2 id="marketplace-harness-is-added-but-ignored-in-every-repo"><code>Marketplace harness is added but ignored</code> in every repo<a class="headerlink" href="#marketplace-harness-is-added-but-ignored-in-every-repo" title="Permanent link">&para;</a></h2>
+<p><code>claude plugin list</code> shows <code>harness@harness … failed to load</code> with "Its source doesn't match its
+extraKnownMarketplaces entry in user or managed settings". The <code>harness</code> entry in your <strong>user</strong> settings
+(<code>~/.claude/settings.json</code>) has a <code>ref</code>/<code>sha</code> that the marketplace wasn't added with, so Claude Code
+ignores the marketplace everywhere. Remove <code>ref</code> and <code>sha</code> from that user entry, leaving
+<code>{"source": "github", "repo": "octanelabsdev/harness"}</code>, then restart. Pin versions in each project's
+<code>.claude/settings.json</code>, not in user settings. Before v0.2.16, <code>/harness:update --apply</code> could write
+that user entry when run from a worktree whose project settings file isn't tracked.</p>
 <h2 id="gates-arent-firing">Gates aren't firing<a class="headerlink" href="#gates-arent-firing" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Check <code>.claude/harness.json</code> → <code>components</code>: the gate must be <code>true</code>. The two gates default <strong>off</strong>
