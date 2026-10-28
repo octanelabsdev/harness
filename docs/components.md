@@ -119,8 +119,10 @@ it never auto-approves the edit); `touch .claude/.pipeline-block` to **block**. 
 The first edit in a session (or in a subagent) waits until the `guardrails` skill is loaded. If the
 transcript has no `guardrails` Skill call, the first `Edit`/`Write`/`MultiEdit`/`NotebookEdit`, or
 the first Bash command that writes files (`sed -i`, a redirect, `cp`/`mv`/`rm`, a script write), is
-**denied once** with a reason telling the agent to load the skill and run CODE. The retry always goes
-through, so an agent that can't load the skill is never stuck.
+**denied** with a reason telling the agent to load the skill and run CODE. Retrying the edit without
+loading the skill is denied again, up to **three times** per session or subagent; the fourth attempt goes
+through, so an agent that can't load the skill is never stuck. (A single deny wasn't enough: Haiku 5.5
+retried straight through it in 4 of 29 bench runs.)
 
 Why it exists: in harness-bench runs, a third of agents never loaded guardrails despite the
 SessionStart nudge. They edited through `sed -i` and heredocs, where no file-tool hook fires, and
