@@ -3,8 +3,10 @@
 #
 # The SessionStart nudge alone wasn't enough: in harness-bench runs a third of agents edited without
 # ever loading guardrails, often through Bash (`sed -i`, a heredoc) where no file-tool hook fires. So
-# this gate watches Bash writes too, and denies the FIRST edit-like call once if the transcript has no
-# guardrails Skill call. It never denies twice in a context: the retry goes through either way.
+# this gate watches Bash writes too, and denies edit-like calls while the transcript has no guardrails
+# Skill call. It keeps denying until the skill loads (Haiku retried straight through a single
+# deny in 4 of 29 bench runs), but at most three times per context, so an agent that can't load it
+# isn't stuck.
 #
 # Defaults ON; set components.guardrails_gate to false in .claude/harness.json to turn it off.
 set -uo pipefail
@@ -27,25 +29,32 @@ bash_writes() {
   return 1
 }
 
+# Marks are per session and agent context: `<id>` counts denies, `<id>.loaded` records the skill load.
+marks="${TMPDIR:-/tmp}/harness-guardrails-gate"
+mkdir -p "$marks" 2>/dev/null || exit 0
+mark="$marks/$(field .session_id | tr -cd 'A-Za-z0-9_-')-$(field .agent_id | tr -cd 'A-Za-z0-9_-')"
+
+# The gate sees the Skill call itself, because headless runs (--no-session-persistence) have no transcript.
 case "$tool" in
+  Skill) [[ "$(field .tool_input.skill)" =~ ^(harness:)?guardrails$ ]] && : > "$mark.loaded" 2>/dev/null; exit 0 ;;
   Edit|Write|MultiEdit|NotebookEdit) ;;
   Bash) bash_writes "$(field .tool_input.command)" || exit 0 ;;
   *) exit 0 ;;
 esac
 
+[ -e "$mark.loaded" ] && exit 0
 transcript=$(field .transcript_path)
 if [ -n "$transcript" ] && [ -f "$transcript" ] &&
    grep -qE '"skill"[[:space:]]*:[[:space:]]*"(harness:)?guardrails"' "$transcript"; then
   exit 0
 fi
 
-# One deny per session and agent context, so an agent that can't or won't load the skill isn't stuck.
-marks="${TMPDIR:-/tmp}/harness-guardrails-gate"
-mkdir -p "$marks" 2>/dev/null || exit 0
-mark="$marks/$(field .session_id | tr -cd 'A-Za-z0-9_-')-$(field .agent_id | tr -cd 'A-Za-z0-9_-')"
-[ -e "$mark" ] && exit 0
-: > "$mark" 2>/dev/null || exit 0
+# The fourth attempt goes through, so an agent that can't load the skill isn't stuck.
+denies=0; [ -f "$mark" ] && denies=$(wc -c < "$mark" | tr -d ' ')
+[ "$denies" -ge 3 ] && exit 0
+printf x >> "$mark" 2>/dev/null || exit 0
+n=$((denies + 1))
 
-jq -n '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",
-  permissionDecisionReason:"GUARDRAILS FIRST: this is your first edit and the guardrails skill is not loaded. Invoke the harness:guardrails skill, read references/CODE.md, and run its before-the-first-edit items (C0: trace a user-visible change from its entrypoint), then retry this edit. This gate fires once."}}'
+jq -n --arg n "$n" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",
+  permissionDecisionReason:("GUARDRAILS FIRST (deny \($n) of 3): the guardrails skill is not loaded, so this edit is refused. Retrying the edit will be refused again. Invoke the harness:guardrails skill, read references/CODE.md, and run its before-the-first-edit items (C0: trace a user-visible change from its entrypoint), then retry this edit.")}}'
 exit 0

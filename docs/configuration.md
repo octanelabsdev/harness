@@ -14,7 +14,7 @@ enforcing gates stay inert.
     "context_warning":   true,   // UserPromptSubmit warning at 75/85/95% of the context window (default on)
     "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
     "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
-    "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied once (default on)
+    "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied up to 3 times (default on)
     "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
   },
   "context_warning": { "window": 1000000 },     // optional: context window in tokens for the warning steps
@@ -56,7 +56,7 @@ enforcing gates stay inert.
   another session's run before blocking as UNVERIFIED. Both are trimmed to fit the Stop hook's 1800s
   timeout (see [components.md](components.md)).
 - **`components`** — the toggleable hooks honor these. `session_banner`, `skill_nudge`, `context_warning` and
-  `guardrails_gate` default to **on** unless set to `false` (the guardrails gate denies at most once per
+  `guardrails_gate` default to **on** unless set to `false` (the guardrails gate denies at most three times per
   context, so it can't wedge a session); the gates (`verification_gate`, `pipeline_gate`, `review_gate`) default
   **off** when unconfigured. When on, the pipeline gate runs in **warn** mode, and the verification gate
   **blocks** on a `test_command` failure (opt down with `.claude/.verification-warn`). `review_gate`
