@@ -20,8 +20,10 @@ If a newer tag is available and the user confirms they want it, **apply** the bu
 bash "${CLAUDE_PLUGIN_ROOT}/tools/harness_update.sh" --apply
 ```
 
-Apply finds the settings.json that declares the `harness` marketplace (project scope first, then user
-scope), rewrites its `source.ref` (and `sha`) to the latest tag, and prints the activation step. It does
+Apply finds this project's settings.json that declares the `harness` marketplace (from a worktree, the
+main checkout's too), rewrites its `source.ref` (and `sha`) to the latest tag, and prints the activation
+step. It **never** rewrites user settings (`~/.claude/settings.json`): a ref there that differs from how
+the marketplace was added makes Claude Code ignore the harness in every repo. It does
 **not** touch the machine cache and does **not** `remove`/re-add anything — the settings source is
 authoritative, but a reload alone does not re-fetch the marketplace clone at the new tag.
 
@@ -37,5 +39,5 @@ old version's script path — it reads its own `plugin.json` and would keep repo
 to confirm it now reports up to date.
 
 Notes to relay when relevant: the effective pin is **tag-level** (protect your release tags — the `sha`
-is written but is not the enforced guarantee); if no settings file declares the marketplace, the tool
-points at `install.sh` to (re)establish the pin.
+is written but is not the enforced guarantee); if this project's settings don't declare the marketplace,
+the tool refuses and points at `install.sh` to pin the project.

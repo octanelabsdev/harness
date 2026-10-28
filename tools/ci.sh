@@ -17,6 +17,7 @@ run "load smoke (static)"  bash tools/smoke_load.sh --static-only
 run "hook behavior"        bash tools/test_hooks.sh
 run "installer behavior"   bash tools/test_install.sh
 run "fleet re-pin behavior" bash tools/test_fleet_repin.sh
+run "update behavior"     bash tools/test_update.sh
 run "docs check behavior" bash tools/test_check_docs.sh
 run "docs updated"         bash tools/check_docs.sh
 run "self doctor"          bash tools/harness_doctor.sh
