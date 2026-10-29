@@ -41,22 +41,22 @@ unless `components.skill_nudge` is `false`.
 Almost all token spend is cache reads, so every turn costs roughly the size of the context, and a
 long session re-reads everything it has built up on every call. On each prompt this hook reads the
 live context size from the transcript (the last main-thread call's input, cache-creation and
-cache-read tokens) and warns **once** at each step: **75%, 85% and 95% of the context window**
-(750K/850K/950K on the default 1M window). You see a one-line `systemMessage` with the
-share of the window used; the model gets `additionalContext` saying this is information, not an
+cache-read tokens) and warns **once** at each step: **100K, 150K and 250K tokens**. The steps are
+fixed token counts rather than a share of the window, because cost tracks context size: on a 1M
+window a percentage step stays quiet until 750K, long after turns got expensive. You see a one-line
+`systemMessage` with the context size; the model gets `additionalContext` saying this is information, not an
 instruction to stop, and that it may suggest `/session-end`, `/clear`, `/session-start` at a natural
 break. A step re-arms if context drops back below it (after `/compact`); `/clear` starts a new
 session, so it starts fresh. Shown unless `components.context_warning` is `false`.
 
-The window is the first of: `$HARNESS_CONTEXT_WINDOW`, `context_warning.window` in
-`.claude/harness.json`, then **1M**, which is every current Claude model's window. Set a smaller
-window to warn earlier: per user with `HARNESS_CONTEXT_WINDOW` (for example `650000` in
-`settings.json` `env` warns at 487K/552K/617K), or for the whole team in the project file. A window
-value must be a plain positive integer of at most nine digits; anything else, including leading
-zeros, is ignored.
+The steps are the first of: `$HARNESS_CONTEXT_STEPS` (a comma list), `context_warning.steps` in
+`.claude/harness.json` (an array), then **100000, 150000, 250000**. Change them per user with
+`HARNESS_CONTEXT_STEPS` (for example `80000,120000` in `settings.json` `env`), or for the whole team
+in the project file. Each step must be a plain positive integer of at most nine digits; anything
+else, including leading zeros, is dropped, and if none are left the defaults apply.
 
-- A non-empty but invalid `HARNESS_CONTEXT_WINDOW` (non-numeric, say) still skips the
-  `context_warning.window` lookup, so the hook falls back to 1M.
+- A non-empty `HARNESS_CONTEXT_STEPS` with no valid entries still skips the
+  `context_warning.steps` lookup, so the hook falls back to the defaults.
 
 ### Verification gate (`verification_gate`) — Stop hook
 When a turn ends with implementation code changed (per `impl_dirs`), it **runs the project's

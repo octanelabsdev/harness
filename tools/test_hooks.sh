@@ -606,78 +606,77 @@ usage() { # usage <main-thread tokens> [sidechain tokens] -> appends assistant e
   [ -n "${2:-}" ] && printf '{"type":"assistant","isSidechain":true,"message":{"usage":{"input_tokens":%s}}}\n' "$2" >> "$T"
   return 0
 }
-run_cw() { # run_cw [session] -> hook stdout, stderr in $CW_TMP/err ($CW_WINDOW = HARNESS_CONTEXT_WINDOW, empty = unset)
-  local w=(env -u HARNESS_CONTEXT_WINDOW); [ -n "${CW_WINDOW:-}" ] && w=(env HARNESS_CONTEXT_WINDOW="$CW_WINDOW")
+run_cw() { # run_cw [session] -> hook stdout, stderr in $CW_TMP/err ($CW_STEPS = HARNESS_CONTEXT_STEPS, empty = unset)
+  local w=(env -u HARNESS_CONTEXT_STEPS); [ -n "${CW_STEPS:-}" ] && w=(env HARNESS_CONTEXT_STEPS="$CW_STEPS")
   TMPDIR="$CW_TMP" CLAUDE_PROJECT_DIR="$R" "${w[@]}" bash "$HOOKS/context_warning.sh" 2>"$CW_TMP/err" <<EOF
 {"session_id":"${1:-s1}","transcript_path":"$T","prompt":"next"}
 EOF
 }
 fresh() { T="$R/transcript-$1.jsonl"; : > "$T"; } # fresh <name> -> start a new transcript
 
-# No override: a 1M window, steps 750K/850K/950K.
-usage 160000
-[ -z "$(run_cw)" ] && ok "default 1M window: no warning at 160K" || no "warned at 160K on the default window"
-usage 700000
-[ -z "$(run_cw)" ] && ok "user sees nothing under 750K" || no "warned under 750K"
+# No override: steps at 100K/150K/250K tokens.
+usage 60000
+[ -z "$(run_cw)" ] && ok "default steps: no warning at 60K" || no "warned at 60K on the default steps"
+usage 99000
+[ -z "$(run_cw)" ] && ok "user sees nothing under 100K" || no "warned under 100K"
 
-usage 760000
+usage 104000
 OUT="$(run_cw)"
 if jq -e '.systemMessage and .hookSpecificOutput.hookEventName == "UserPromptSubmit" and .hookSpecificOutput.additionalContext' <<< "$OUT" >/dev/null 2>&1; then
-  ok "at 760K the user gets one JSON object with a systemMessage and model context"
-else no "760K warning is not a single valid JSON object: $OUT"; fi
-grep -q "crossed 750K" <<< "$OUT" && grep -q "760K of a 1M window (76%)" <<< "$OUT" && ok "warning names the size and the share of the window" || no "760K warning wording wrong: $OUT"
+  ok "at 104K the user gets one JSON object with a systemMessage and model context"
+else no "104K warning is not a single valid JSON object: $OUT"; fi
+grep -q "crossed 100K" <<< "$OUT" && grep -q "Context is at 104K tokens" <<< "$OUT" && ok "warning names the size in tokens and the step crossed" || no "104K warning wording wrong: $OUT"
 grep -q "not an instruction to stop" <<< "$OUT" && ok "model context says it is not an instruction to stop" || no "model context still mandates stopping: $OUT"
-[ -z "$(run_cw)" ] && ok "the 750K step warns only once" || no "750K step warned twice"
+[ -z "$(run_cw)" ] && ok "the 100K step warns only once" || no "100K step warned twice"
 
-usage 765000 999999
+usage 110000 999999
 [ -z "$(run_cw)" ] && ok "a larger subagent call does not warn" || no "sidechain usage counted"
-usage 860000
-grep -q "crossed 850K" <<< "$(run_cw)" && ok "warns again at 85% (850K)" || no "850K step missing"
+usage 155000
+grep -q "crossed 150K" <<< "$(run_cw)" && ok "warns again at 150K" || no "150K step missing"
+usage 260000
+grep -q "crossed 250K" <<< "$(run_cw)" && ok "warns again at 250K" || no "250K step missing"
+usage 800000
+[ -z "$(run_cw)" ] && ok "no step past 250K, so no repeat warning" || no "warned past the last step"
 
 usage 90000
 [ -z "$(run_cw)" ] && ok "after /compact drops context, no warning" || no "warned after context dropped"
-usage 755000
-grep -q "crossed 750K" <<< "$(run_cw)" && ok "the 750K step re-arms after context drops" || no "750K step did not re-arm"
+usage 105000
+grep -q "crossed 100K" <<< "$(run_cw)" && ok "the 100K step re-arms after context drops" || no "100K step did not re-arm"
 
-grep -q "crossed 750K" <<< "$(run_cw other)" && ok "a new session (after /clear) gets its own steps" || no "new session did not warn at 750K"
+grep -q "crossed 100K" <<< "$(run_cw other)" && ok "a new session (after /clear) gets its own steps" || no "new session did not warn at 100K"
 
-# Overrides: harness.json context_warning.window, and HARNESS_CONTEXT_WINDOW over it.
-fresh cfg200
-printf '{"components":{},"context_warning":{"window":200000}}' > "$R/.claude/harness.json"
-usage 175000
-OUT="$(run_cw c2)"
-grep -q "crossed 170K" <<< "$OUT" && grep -q "of a 200K window" <<< "$OUT" && ok "context_warning.window 200K: steps at 150K/170K/190K" || no "200K window steps wrong: $OUT"
-CW_WINDOW=1000000
-[ -z "$(run_cw c3)" ] && ok "HARNESS_CONTEXT_WINDOW overrides context_warning.window" || no "env window did not override config"
-usage 760000
-grep -q "crossed 750K" <<< "$(run_cw c3)" && ok "HARNESS_CONTEXT_WINDOW 1M: warns at 750K, not the config's 190K" || no "env window 750K step missing"
-CW_WINDOW=650000
-usage 500000
-grep -q "crossed 487K" <<< "$(run_cw c4)" && ok "HARNESS_CONTEXT_WINDOW 650K: warns at 487K" || no "env window 650K step missing"
-CW_WINDOW=""
+# Overrides: harness.json context_warning.steps, and HARNESS_CONTEXT_STEPS over it.
+fresh cfg; usage 85000
+printf '{"components":{},"context_warning":{"steps":[200000,80000]}}' > "$R/.claude/harness.json"
+grep -q "crossed 80K" <<< "$(run_cw c2)" && ok "context_warning.steps [200000,80000]: warns at 80K, order ignored" || no "config steps not honored"
+CW_STEPS=500000
+[ -z "$(run_cw c3)" ] && ok "HARNESS_CONTEXT_STEPS overrides context_warning.steps" || no "env steps did not override config"
+CW_STEPS="300000, 50000"
+grep -q "crossed 50K" <<< "$(run_cw c4)" && ok "HARNESS_CONTEXT_STEPS takes a comma list with spaces" || no "env comma list not parsed"
+CW_STEPS=""
 
-fresh bad; usage 760000
-printf '{"components":{},"context_warning":{"window":"lots"}}' > "$R/.claude/harness.json"
+fresh bad; usage 104000
+printf '{"components":{},"context_warning":{"steps":"lots"}}' > "$R/.claude/harness.json"
 OUT="$(run_cw c5)"
-grep -q "760K of a 1M window" <<< "$OUT" && [ ! -s "$CW_TMP/err" ] && ok "a non-numeric config window falls back to 1M" || no "bad config window broke the fallback: err=$(cat "$CW_TMP/err") out=$OUT"
-printf '{"components":{},"context_warning":{"window":"0200000"}}' > "$R/.claude/harness.json"
+grep -q "crossed 100K" <<< "$OUT" && [ ! -s "$CW_TMP/err" ] && ok "non-array config steps fall back to the defaults" || no "bad config steps broke the fallback: err=$(cat "$CW_TMP/err") out=$OUT"
+printf '{"components":{},"context_warning":{"steps":["0200000","x"]}}' > "$R/.claude/harness.json"
 OUT="$(run_cw c6)"
-grep -q "760K of a 1M window" <<< "$OUT" && [ ! -s "$CW_TMP/err" ] && ok "a zero-padded config window is ignored quietly" || no "config window 0200000 not handled: err=$(cat "$CW_TMP/err") out=$OUT"
+grep -q "crossed 100K" <<< "$OUT" && [ ! -s "$CW_TMP/err" ] && ok "zero-padded and non-numeric config steps are dropped quietly" || no "config steps 0200000/x not handled: err=$(cat "$CW_TMP/err") out=$OUT"
 printf '{"components":{}}' > "$R/.claude/harness.json"
 n=0
-for CW_WINDOW in 08 0200000 12345678901234567890; do
+for CW_STEPS in 08 0200000 12345678901234567890 ,,; do
   n=$((n+1)); OUT="$(run_cw "e$n")"; rc=$?
-  [ "$rc" = 0 ] && [ ! -s "$CW_TMP/err" ] && grep -q "760K of a 1M window" <<< "$OUT" \
-    && ok "HARNESS_CONTEXT_WINDOW=$CW_WINDOW is ignored: exit 0, no stderr, 1M window" \
-    || no "HARNESS_CONTEXT_WINDOW=$CW_WINDOW: rc=$rc err=$(cat "$CW_TMP/err") out=$OUT"
+  [ "$rc" = 0 ] && [ ! -s "$CW_TMP/err" ] && grep -q "crossed 100K" <<< "$OUT" \
+    && ok "HARNESS_CONTEXT_STEPS=$CW_STEPS is ignored: exit 0, no stderr, default steps" \
+    || no "HARNESS_CONTEXT_STEPS=$CW_STEPS: rc=$rc err=$(cat "$CW_TMP/err") out=$OUT"
 done
-CW_WINDOW=""
+CW_STEPS=""
 
 printf '{"components":{"context_warning":false}}' > "$R/.claude/harness.json"
 [ -z "$(run_cw fresh)" ] && ok "components.context_warning:false silences it" || no "toggle off still warned"
 printf '{"components":{}}' > "$R/.claude/harness.json"
 
-OUT="$(TMPDIR="$CW_TMP" CLAUDE_PROJECT_DIR="$R" env -u HARNESS_CONTEXT_WINDOW bash "$HOOKS/context_warning.sh" <<< '{"session_id":"x","transcript_path":"/nonexistent"}')"; rc=$?
+OUT="$(TMPDIR="$CW_TMP" CLAUDE_PROJECT_DIR="$R" env -u HARNESS_CONTEXT_STEPS bash "$HOOKS/context_warning.sh" <<< '{"session_id":"x","transcript_path":"/nonexistent"}')"; rc=$?
 [ "$rc" = 0 ] && [ -z "$OUT" ] && ok "a missing transcript exits 0 silently" || no "missing transcript: rc=$rc out=$OUT"
 rm -rf "$R" "$CW_TMP"
 

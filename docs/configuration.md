@@ -11,13 +11,13 @@ enforcing gates stay inert.
   "components": {
     "session_banner":    true,   // SessionStart status banner (informational; default shown)
     "skill_nudge":       true,   // SessionStart nudge to invoke skills (default on)
-    "context_warning":   true,   // UserPromptSubmit warning at 75/85/95% of the context window (default on)
+    "context_warning":   true,   // UserPromptSubmit warning at 100K/150K/250K tokens (default on)
     "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
     "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
     "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied up to 3 times (default on)
     "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
   },
-  "context_warning": { "window": 1000000 },     // optional: context window in tokens for the warning steps
+  "context_warning": { "steps": [100000, 150000, 250000] }, // optional: context sizes, in tokens, that warn
   "stack": {
     "name": "rails",                            // label, shown in the banner
     "impl_dirs":  ["app", "lib", "db/migrate"], // the "implementation surface" the gates care about
@@ -64,11 +64,11 @@ enforcing gates stay inert.
   artifact** for the current diff — produced by the `blind-review` skill, checked by
   `tools/review_verify.sh`; same `.claude/.verification-warn` downgrade. (The `harness_bootstrap` hook
   has no toggle — it only acts when there's no config yet; see [components.md](components.md).)
-- **`context_warning.window`** (optional) — the context window, in tokens, that the context warning
-  scales its 75/85/95% steps to. `HARNESS_CONTEXT_WINDOW` in the environment overrides it, which suits
-  a per-user model choice better than a committed file. Unset, it is 1M, every current Claude model's
-  window. Values must be a plain positive integer (no leading
-  zeros, at most nine digits); a non-numeric `HARNESS_CONTEXT_WINDOW` disables this lookup (see
+- **`context_warning.steps`** (optional) — the context sizes, in tokens, at which the context warning
+  fires once each. `HARNESS_CONTEXT_STEPS` (a comma list) in the environment overrides it, which suits
+  a per-user preference better than a committed file. Unset, it is 100000, 150000, 250000. Each value
+  must be a plain positive integer (no leading zeros, at most nine digits); invalid entries are
+  dropped, and a non-empty `HARNESS_CONTEXT_STEPS` with none valid still disables this lookup (see
   [components.md](components.md)).
 - **`agents_bundle`** (optional) — the default agent bundle `/harness:agents` pulls when given no
   repo. `repo` is an `owner/name` slug or git URL; `glob` lists which files in the bundle are agents.
