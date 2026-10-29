@@ -4,11 +4,13 @@
 # Nearly all token spend is cache reads, so every call costs roughly the size of the context. A long
 # session re-reads everything it has accumulated on every turn. This hook reads the live context size
 # from the transcript (the last main-thread assistant call's input + cache_creation + cache_read
-# tokens) and warns once at each step: 75%, 85% and 95% of the context window. The operator sees a
-# systemMessage; the model gets additionalContext so it can mention a clean break when one comes up.
+# tokens) and warns once at each step: 100K, 150K and 250K tokens. The steps are fixed token counts,
+# not a share of the window, because cost tracks context size: a 1M window would otherwise stay quiet
+# until 750K, long after turns got expensive. The operator sees a systemMessage; the model gets
+# additionalContext so it can mention a clean break when one comes up.
 #
-# The window, first match wins: $HARNESS_CONTEXT_WINDOW, then context_warning.window in
-# .claude/harness.json, then 1M (every current Claude model has a 1M window).
+# The steps, first match wins: $HARNESS_CONTEXT_STEPS (comma list), then context_warning.steps in
+# .claude/harness.json, then 100000,150000,250000. Invalid entries are dropped; none left means default.
 #
 # Steps re-arm when context drops back below them (after /compact). /clear starts a new session id,
 # so it starts fresh. Informational, so it defaults ON — set components.context_warning to false in
@@ -30,13 +32,18 @@ tokens="$(tail -n 500 "$transcript" | jq -rs '
 ' 2>/dev/null)"
 case "$tokens" in ''|*[!0-9]*) exit 0 ;; esac
 
-window="${HARNESS_CONTEXT_WINDOW:-$(hcfg '.context_warning.window?' '')}"
-# Leading zeros read as octal in $(( )) and over 9 digits risks overflow, so both count as unset.
-[[ "$window" =~ ^[1-9][0-9]{0,8}$ ]] || window=1000000
+steps="${HARNESS_CONTEXT_STEPS:-$(hcfg '.context_warning.steps? | map(tostring) | join(",")' '')}"
+valid=()
+IFS=', ' read -ra raw <<< "$steps"
+for t in ${raw[@]+"${raw[@]}"}; do
+  # Leading zeros read as octal in $(( )) and over 9 digits risks overflow, so both are dropped.
+  [[ "$t" =~ ^[1-9][0-9]{0,8}$ ]] && valid+=("$t")
+done
+[ "${#valid[@]}" -gt 0 ] || valid=(100000 150000 250000)
 
 level=0
-for t in $((window * 75 / 100)) $((window * 85 / 100)) $((window * 95 / 100)); do
-  [ "$tokens" -ge "$t" ] && level=$t
+for t in "${valid[@]}"; do
+  [ "$tokens" -ge "$t" ] && [ "$t" -gt "$level" ] && level=$t
 done
 
 state_dir="${TMPDIR:-/tmp}/harness-context-warning"
@@ -50,8 +57,7 @@ if [ "$level" -le "$last" ]; then
 fi
 printf '%s' "$level" > "$state"
 
-if [ $((window % 1000000)) -eq 0 ]; then wl="$((window / 1000000))M"; else wl="$((window / 1000))K"; fi
-size="$((tokens / 1000))K of a ${wl} window ($((tokens * 100 / window))%)"
+size="$((tokens / 1000))K tokens"
 user="Context is at ${size}. Every turn re-reads all of it, so a clean break at a natural stopping point (/session-end, /clear, /session-start) keeps turns cheaper."
 model="HARNESS CONTEXT: this session's context is about ${size} (crossed $((level / 1000))K). This is information, not an instruction to stop: carry on with the current task. If a natural stopping point comes up, you may mention to the user that /session-end, then /clear and /session-start, would start a fresh, cheaper context."
 
