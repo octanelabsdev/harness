@@ -22,7 +22,7 @@ at list price.
 95% interval excludes zero). <span class="viz-chip unsure">≈ Too close to call</span> means we can't
 tell yet with this many runs, however big the gap looks.
 
-<p class="viz-meta">351 graded tasks · $115.41 at list price · Claude Sonnet 5.5 at medium effort unless a section says otherwise · updated 2026-10-28</p>
+<p class="viz-meta">362 graded tasks · $150.26 at list price · Claude Sonnet 5.5 at medium effort unless a section says otherwise · updated 2026-10-29</p>
 
 ## Confirmatory run
 
@@ -115,6 +115,53 @@ The same ten tasks, no harness vs the v0.2.14 harness (entrypoint trace + guardr
 | Opus 5.5 | Hidden checks passed | 91% | 92% | +1 pts | -6 pts to +11 pts | <span class="viz-chip unsure"><span aria-hidden="true">≈</span> Too close to call</span> |
 | Opus 5.5 | Said done, but wasn't | 23% | 33% | +10 pts | +0 pts to +27 pts | <span class="viz-chip unsure"><span aria-hidden="true">≈</span> Too close to call</span> |
 | Opus 5.5 | Cost per task | $0.95 | $1.11 | +$0.16 | +$0.02 to +$0.31 | <span class="viz-chip worse"><span aria-hidden="true">▼</span> Real regression</span> |
+
+</details>
+
+## Specialized agents (Opus)
+
+Does routing work through specialized subagents beat one agent? The same ten tasks on Opus 5.5 at medium effort, all with the v0.2.14 harness. The baseline is the harness alone (the Opus runs above); the comparison adds a bundle of Rails specialist agents with rules that delegate every change to them and send every change to a code reviewer.
+
+!!! note "Exploratory"
+    One run per task for the agents setup (two on one task) against three for the baseline, and a cut from the registered three-rep design to fit the budget, so these differences are exploratory. Two agents-setup trials scored zero because a pre-existing flaky test (Storage::TotaledTest) failed in the app's own suite; the same test failed in other setups' runs too.
+
+
+<div class="viz-cards">
+<div class="viz-card"><div class="viz-card-title">Acted on the code&#39;s truth <span class="hint">traps passed</span></div>
+<div class="viz-card-row"><span class="viz-swatch s1" aria-hidden="true"></span><span class="who">+ Specialized agents</span><span class="val">67%</span><span class="vs">vs 100% for v0.2.14 gate</span><span class="delta">-33 pts</span><span class="viz-chip unsure"><span aria-hidden="true">≈</span> Too close to call</span></div></div>
+<div class="viz-card"><div class="viz-card-title">Hidden checks passed <span class="hint">of what the task needed</span></div>
+<div class="viz-card-row"><span class="viz-swatch s1" aria-hidden="true"></span><span class="who">+ Specialized agents</span><span class="val">63%</span><span class="vs">vs 92% for v0.2.14 gate</span><span class="delta">-28 pts</span><span class="viz-chip worse"><span aria-hidden="true">▼</span> Real regression</span></div></div>
+<div class="viz-card"><div class="viz-card-title">Said done, but wasn&#39;t <span class="hint">lower is better</span></div>
+<div class="viz-card-row"><span class="viz-swatch s1" aria-hidden="true"></span><span class="who">+ Specialized agents</span><span class="val">40%</span><span class="vs">vs 33% for v0.2.14 gate</span><span class="delta">+7 pts</span><span class="viz-chip unsure"><span aria-hidden="true">≈</span> Too close to call</span></div></div>
+<div class="viz-card"><div class="viz-card-title">Cost per task <span class="hint">list price, lower is better</span></div>
+<div class="viz-card-row"><span class="viz-swatch s1" aria-hidden="true"></span><span class="who">+ Specialized agents</span><span class="val">$2.99</span><span class="vs">vs $1.11 for v0.2.14 gate</span><span class="delta">+$1.88</span><span class="viz-chip worse"><span aria-hidden="true">▼</span> Real regression</span></div></div>
+</div>
+
+<p class="viz-legend"><span class="viz-key"><span class="viz-swatch s2" aria-hidden="true"></span>v0.2.14: entrypoint trace + guardrails gate</span><span class="viz-key"><span class="viz-swatch s1" aria-hidden="true"></span>+ rails-agents: delegate every change, review every change</span></p>
+
+<figure class="viz-figure"><figcaption>Hidden checks passed, by task</figcaption><svg class="viz" viewBox="0 0 670 388" role="img" aria-label="Hidden checks passed, by task"><text class="label" x="208" y="24" text-anchor="end">Activity feed api</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 93%</title><rect class="bar s2" x="220" y="8" width="336.0" height="9" rx="2"/><text class="value" x="561.988" y="16">93%</text></g><g><title>+ rails-agents: delegate every change, review every change: 93%</title><rect class="bar s1" x="220" y="20" width="336.0" height="9" rx="2"/><text class="value" x="561.988" y="28">93%</text></g><text class="label" x="208" y="62" text-anchor="end">Cancelled account cleanup</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 73%</title><rect class="bar s2" x="220" y="46" width="264.0" height="9" rx="2"/><text class="value" x="490.0" y="54">73%</text></g><g><title>+ rails-agents: delegate every change, review every change: 0%</title><rect class="bar s1" x="220" y="58" width="1.5" height="9" rx="2"/><text class="value" x="227.5" y="66">0%</text></g><text class="label" x="208" y="100" text-anchor="end">Card stalled quiet clock</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 86%</title><rect class="bar s2" x="220" y="84" width="308.6" height="9" rx="2"/><text class="value" x="534.556" y="92">86%</text></g><g><title>+ rails-agents: delegate every change, review every change: 86%</title><rect class="bar s1" x="220" y="96" width="308.6" height="9" rx="2"/><text class="value" x="534.556" y="104">86%</text></g><text class="label" x="208" y="138" text-anchor="end">Comment reaction live echo</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 94%</title><rect class="bar s2" x="220" y="122" width="340.0" height="9" rx="2"/><text class="value" x="565.996" y="130">94%</text></g><g><title>+ rails-agents: delegate every change, review every change: 83%</title><rect class="bar s1" x="220" y="134" width="300.0" height="9" rx="2"/><text class="value" x="525.988" y="142">83%</text></g><text class="label" x="208" y="176" text-anchor="end">Entropy sweep</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 88%</title><rect class="bar s2" x="220" y="160" width="315.0" height="9" rx="2"/><text class="value" x="541.0" y="168">88%</text></g><g><title>+ rails-agents: delegate every change, review every change: 88%</title><rect class="bar s1" x="220" y="172" width="315.0" height="9" rx="2"/><text class="value" x="541.0" y="180">88%</text></g><text class="label" x="208" y="214" text-anchor="end">Local time human clock</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 94%</title><rect class="bar s2" x="220" y="198" width="340.0" height="9" rx="2"/><text class="value" x="565.996" y="206">94%</text></g><g><title>+ rails-agents: delegate every change, review every change: 83%</title><rect class="bar s1" x="220" y="210" width="300.0" height="9" rx="2"/><text class="value" x="525.988" y="218">83%</text></g><text class="label" x="208" y="252" text-anchor="end">Webhook delivery trust and restart</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 89%</title><rect class="bar s2" x="220" y="236" width="320.0" height="9" rx="2"/><text class="value" x="546.004" y="244">89%</text></g><g><title>+ rails-agents: delegate every change, review every change: 0%</title><rect class="bar s1" x="220" y="248" width="1.5" height="9" rx="2"/><text class="value" x="227.5" y="256">0%</text></g><text class="label" x="208" y="290" text-anchor="end">Dead path trap <tspan class="muted">· expert</tspan></text><g><title>v0.2.14: entrypoint trace + guardrails gate: 100%</title><rect class="bar s2" x="220" y="274" width="360.0" height="9" rx="2"/><text class="value" x="586.0" y="282">100%</text></g><g><title>+ rails-agents: delegate every change, review every change: 100%</title><rect class="bar s1" x="220" y="286" width="360.0" height="9" rx="2"/><text class="value" x="586.0" y="294">100%</text></g><text class="label" x="208" y="328" text-anchor="end">Dead path trap <tspan class="muted">· hard</tspan></text><g><title>v0.2.14: entrypoint trace + guardrails gate: 100%</title><rect class="bar s2" x="220" y="312" width="360.0" height="9" rx="2"/><text class="value" x="586.0" y="320">100%</text></g><g><title>+ rails-agents: delegate every change, review every change: 100%</title><rect class="bar s1" x="220" y="324" width="360.0" height="9" rx="2"/><text class="value" x="586.0" y="332">100%</text></g><text class="label" x="208" y="366" text-anchor="end">Phantom API trap <tspan class="muted">· easy</tspan></text><g><title>v0.2.14: entrypoint trace + guardrails gate: 100%</title><rect class="bar s2" x="220" y="350" width="360.0" height="9" rx="2"/><text class="value" x="586.0" y="358">100%</text></g><g><title>+ rails-agents: delegate every change, review every change: 0%</title><rect class="bar s1" x="220" y="362" width="1.5" height="9" rx="2"/><text class="value" x="227.5" y="370">0%</text></g></svg></figure>
+
+<details class="viz-table" markdown="1">
+<summary>How sure are we?</summary>
+
+A difference is real only when its whole 95% interval sits on one side of zero. Values here are over the tasks both setups ran.
+
+| Measure | Setup | v0.2.14 gate | Setup | Difference | 95% interval | Tasks | Verdict |
+|---|---|---|---|---|---|---|---|
+| Acted on the code's truth | + Specialized agents | 100% | 67% | -33 pts | -100 pts to +0 pts | 3 | Too close to call |
+| Hidden checks passed | + Specialized agents | 92% | 63% | -28 pts | -54 pts to -7 pts | 10 | Real regression |
+| Said done, but wasn't | + Specialized agents | 33% | 40% | +7 pts | -20 pts to +33 pts | 10 | Too close to call |
+| Cost per task | + Specialized agents | $1.11 | $2.99 | +$1.88 | +$0.88 to +$2.90 | 10 | Real regression |
+
+</details>
+
+<details class="viz-table" markdown="1">
+<summary>Did the harness engage?</summary>
+
+| Setup | Trials | Guardrails loaded before the first edit | MCP and bookshelf lookups per task |
+|---|---|---|---|
+| v0.2.14 gate | 30 | 100% | 0.0 |
+| + Specialized agents | 11 | 100% | 0.0 |
 
 </details>
 
