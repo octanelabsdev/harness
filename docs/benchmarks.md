@@ -12,6 +12,10 @@ work done. These results compare the same agent with and without it.
 Each task runs Claude Code headless in a sandbox on a real Rails app, and a hidden test suite the
 agent never sees grades the result. Every setup runs the same tasks; only the harness changes.
 
+**Which harness.** The harness setups ran v0.2.14 (commit `b968feb`). Later releases changed the
+guardrails gate (v0.2.15) and the global template (v0.2.17). Apart from the Haiku gate check in
+Caveats, they haven't been re-run, so these numbers describe v0.2.14, not the current release.
+
 **What we compare.** *Acted on the code's truth*: when a ticket, comment or doc contradicted the
 code, did the agent follow the code? *Hidden checks passed*: how much of what the task needed did
 it build? *Said done, but wasn't*: did it claim done while hidden checks failed? *Cost per task*,
@@ -22,7 +26,7 @@ at list price.
 95% interval excludes zero). <span class="viz-chip unsure">≈ Too close to call</span> means we can't
 tell yet with this many runs, however big the gap looks.
 
-<p class="viz-meta">393 graded tasks · $217.13 at list price · Claude Sonnet 5.5 at medium effort unless a section says otherwise · updated 2026-10-29</p>
+<p class="viz-meta">393 graded tasks · $217.13 at list price · Claude Sonnet 5.5 at medium effort unless a section says otherwise · updated 2026-10-30</p>
 
 ## Confirmatory run
 
@@ -313,5 +317,7 @@ A difference is real only when its whole 95% interval sits on one side of zero. 
 - Opus 5.5 passed every trap without the harness, so on Opus the harness had nothing to fix there and only added cost. The traps are tuned to tempt Sonnet; harder ones are needed to see whether Opus slips.
 - Haiku 5.5 sometimes walked through the gate: in 4 of 29 runs it retried the refused edit instead of loading the guardrails skill first, and loaded it a few steps later. Sonnet and Opus complied every time. v0.2.15 keeps refusing until the skill loads (at most three times): on the same Haiku tasks, no run edited before loading it (0 of 29), with no measurable change in the four scores or cost.
 - In these runs the v0.2.14 gate refused the first edit even when the guardrails skill was already loaded. It looked for the skill in the session transcript, and headless bench runs don't save one; interactive sessions do. So the harness arms above measure "refuse the first edit once", which costs an agent that loaded the skill first one wasted step.
+- v0.2.15 fixed that: the gate sees the Skill call itself, so an agent that loads the skill first isn't refused. Not re-measured; the cost figures above include the wasted step.
+- The "Grounded + one review" setup is v0.2.14 plus the adopted rules as a separate rules file. v0.2.17 ships those rules in its global template; the template itself hasn't been run.
 - The traps are written to tempt grounding failures. They show *where* the harness changes behavior, not how often that happens in everyday work.
 - Runs where the setup itself failed (the harness didn't load, the sandbox misbehaved) are excluded, never scored as agent failures.
