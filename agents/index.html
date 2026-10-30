@@ -827,10 +827,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-delegation-map" class="md-nav__link">
+  <a href="#which-agent-owns-what" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The delegation map
+        Which agent owns what
       
     </span>
   </a>
@@ -1100,10 +1100,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-delegation-map" class="md-nav__link">
+  <a href="#which-agent-owns-what" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The delegation map
+        Which agent owns what
       
     </span>
   </a>
@@ -1192,12 +1192,17 @@ cloning a bundle. Prefer gitignored symlinks (the default) if agents come from a
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>Instructions, conventions, and the discipline this agent follows…
 </code></pre></div>
 Guidance:
-- <strong>One clear owner per domain.</strong> Route each kind of work to the agent that owns it.
+- <strong>On demand, not mandatory.</strong> Call an agent when it earns its cost; write small changes directly.
+  Each agent re-reads its context from scratch, and routing every change through one cost about 3x for
+  the same or worse results in harness-bench (see <a href="../benchmarks/#specialized-agents-opus">Benchmarks</a>).
+- <strong>One clear owner per domain.</strong> When you do delegate, send each kind of work to the agent that owns it.
 - <strong>Ground the agent in truth, not memory.</strong> If your stack has a way to query the real project
   (a language server, a schema/route introspector, an MCP server), instruct the agent to use it
   before inferring structure from partial reads.
-- <strong>A reviewer at the end.</strong> Keep a review agent as the final gate before you call work done. If you run
-  the <strong>review gate</strong> (<code>components.review_gate</code>), your reviewer must fit the blind-review contract below.</p>
+- <strong>A reviewer at the end, when a change warrants it.</strong> Run a review agent once, after the change is
+  done and the suite is green, for schema, auth, payment or sizable changes; skip it for small ones and
+  say so. If you run the <strong>review gate</strong> (<code>components.review_gate</code>), which reviews every change, your
+  reviewer must fit the blind-review contract below.</p>
 <h3 id="the-blind-review-contract-for-review_gate">The blind-review contract (for <code>review_gate</code>)<a class="headerlink" href="#the-blind-review-contract-for-review_gate" title="Permanent link">&para;</a></h3>
 <p>When <code>components.review_gate</code> is on, the <code>blind-review</code> skill drives your project's reviewer and the
 verification gate verifies the result. Your reviewer (BYO — Rails ships <code>dhh-code-reviewer</code>) must:</p>
@@ -1275,10 +1280,10 @@ blocks the agent:</p>
 - The graceful-fallback line is not optional boilerplate — it's what keeps a missing/empty <code>TOMES_DIR</code>
   from turning grounding into a hard stop. <code>tome.sh</code> itself falls back to common shelves and reports a
   miss rather than erroring.</p>
-<h2 id="the-delegation-map">The delegation map<a class="headerlink" href="#the-delegation-map" title="Permanent link">&para;</a></h2>
-<p>Where you enforce "always delegate to an agent," put it in your global ruleset
-(<code>templates/global-CLAUDE.md</code> has a <code>TODO</code> slot for the delegation map). The harness provides the
-enforcement scaffolding; your ruleset + agents provide the routing.</p>
+<h2 id="which-agent-owns-what">Which agent owns what<a class="headerlink" href="#which-agent-owns-what" title="Permanent link">&para;</a></h2>
+<p>Say which agent owns which domain, and when work is worth delegating, in your global ruleset
+(<code>templates/global-CLAUDE.md</code> has a <code>TODO</code> slot). Keep it in that one place: a project <code>CLAUDE.md</code>
+that restates delegation rules overrides the global ones and drifts from them.</p>
 
 
 
