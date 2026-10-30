@@ -22,7 +22,7 @@ at list price.
 95% interval excludes zero). <span class="viz-chip unsure">≈ Too close to call</span> means we can't
 tell yet with this many runs, however big the gap looks.
 
-<p class="viz-meta">373 graded tasks · $172.25 at list price · Claude Sonnet 5.5 at medium effort unless a section says otherwise · updated 2026-10-29</p>
+<p class="viz-meta">393 graded tasks · $217.13 at list price · Claude Sonnet 5.5 at medium effort unless a section says otherwise · updated 2026-10-29</p>
 
 ## Confirmatory run
 
@@ -171,6 +171,50 @@ A difference is real only when its whole 95% interval sits on one side of zero. 
 | v0.2.14 gate | 30 | 100% | 0.0 |
 | + Specialized agents | 11 | 100% | 0.0 |
 | + Grounded + one review | 11 | 100% | 0.0 |
+
+</details>
+
+## Real-world replay (Opus)
+
+Ten merged pull requests from a production Rails app, each replayed from its parent commit with the original ticket as the instruction, plus the class and method names its tests call. The checks are the tests each pull request added or changed (541 in all); the app's own suite must stay green. The baseline is the harness alone; the comparison is the adopted workflow: the agent writes the code, grounds structural claims in live introspection, and runs one review at the end when a change warrants it.
+
+!!! note "Exploratory"
+    One run per task per setup. Calibration: the original change passes every check; an untouched tree passes 0–48% of them (about 23% on average), which is the floor for each task. Some checks also assert exact markup and copy the tickets never state, so absolute scores read low for both setups. One task's start state was corrected because its dev seed contradicted the ticket. The largest task (163 checks) decides most of the gap: the adopted workflow finished it with the app's own suite red.
+
+
+<div class="viz-cards">
+<div class="viz-card"><div class="viz-card-title">Hidden checks passed <span class="hint">of what the task needed</span></div>
+<div class="viz-card-row"><span class="viz-swatch s3" aria-hidden="true"></span><span class="who">+ Grounded + one review</span><span class="val">44%</span><span class="vs">vs 54% for v0.2.14 gate</span><span class="delta">-10 pts</span><span class="viz-chip unsure"><span aria-hidden="true">≈</span> Too close to call</span></div></div>
+<div class="viz-card"><div class="viz-card-title">Said done, but wasn&#39;t <span class="hint">lower is better</span></div>
+<div class="viz-card-row"><span class="viz-swatch s3" aria-hidden="true"></span><span class="who">+ Grounded + one review</span><span class="val">100%</span><span class="vs">vs 90% for v0.2.14 gate</span><span class="delta">+10 pts</span><span class="viz-chip unsure"><span aria-hidden="true">≈</span> Too close to call</span></div></div>
+<div class="viz-card"><div class="viz-card-title">Cost per task <span class="hint">list price, lower is better</span></div>
+<div class="viz-card-row"><span class="viz-swatch s3" aria-hidden="true"></span><span class="who">+ Grounded + one review</span><span class="val">$1.75</span><span class="vs">vs $2.74 for v0.2.14 gate</span><span class="delta">-$0.99</span><span class="viz-chip better"><span aria-hidden="true">▲</span> Real improvement</span></div></div>
+</div>
+
+<p class="viz-legend"><span class="viz-key"><span class="viz-swatch s2" aria-hidden="true"></span>v0.2.14: entrypoint trace + guardrails gate</span><span class="viz-key"><span class="viz-swatch s3" aria-hidden="true"></span>+ adopted rules: grounded in live introspection, one review at the end</span></p>
+
+<figure class="viz-figure"><figcaption>Hidden checks passed, by task</figcaption><svg class="viz" viewBox="0 0 670 388" role="img" aria-label="Hidden checks passed, by task"><text class="label" x="208" y="24" text-anchor="end">Br admin blockers</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 85%</title><rect class="bar s2" x="220" y="8" width="306.7" height="9" rx="2"/><text class="value" x="532.684" y="16">85%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 85%</title><rect class="bar s3" x="220" y="20" width="306.7" height="9" rx="2"/><text class="value" x="532.684" y="28">85%</text></g><text class="label" x="208" y="62" text-anchor="end">Br admin bugs</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 71%</title><rect class="bar s2" x="220" y="46" width="257.1" height="9" rx="2"/><text class="value" x="483.148" y="54">71%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 68%</title><rect class="bar s3" x="220" y="58" width="244.3" height="9" rx="2"/><text class="value" x="470.296" y="66">68%</text></g><text class="label" x="208" y="100" text-anchor="end">Br maps google opt in</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 69%</title><rect class="bar s2" x="220" y="84" width="249.2" height="9" rx="2"/><text class="value" x="475.228" y="92">69%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 31%</title><rect class="bar s3" x="220" y="96" width="110.8" height="9" rx="2"/><text class="value" x="336.772" y="104">31%</text></g><text class="label" x="208" y="138" text-anchor="end">Br open in maps</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 38%</title><rect class="bar s2" x="220" y="122" width="135.0" height="9" rx="2"/><text class="value" x="361.0" y="130">38%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 39%</title><rect class="bar s3" x="220" y="134" width="140.6" height="9" rx="2"/><text class="value" x="366.616" y="142">39%</text></g><text class="label" x="208" y="176" text-anchor="end">Br password changed email</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 44%</title><rect class="bar s2" x="220" y="160" width="158.4" height="9" rx="2"/><text class="value" x="384.4" y="168">44%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 48%</title><rect class="bar s3" x="220" y="172" width="172.8" height="9" rx="2"/><text class="value" x="398.79999999999995" y="180">48%</text></g><text class="label" x="208" y="214" text-anchor="end">Br password policy core</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 60%</title><rect class="bar s2" x="220" y="198" width="215.1" height="9" rx="2"/><text class="value" x="441.13599999999997" y="206">60%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 0%</title><rect class="bar s3" x="220" y="210" width="1.5" height="9" rx="2"/><text class="value" x="227.5" y="218">0%</text></g><text class="label" x="208" y="252" text-anchor="end">Br password upgrade prompt</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 25%</title><rect class="bar s2" x="220" y="236" width="88.7" height="9" rx="2"/><text class="value" x="314.704" y="244">25%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 26%</title><rect class="bar s3" x="220" y="248" width="93.9" height="9" rx="2"/><text class="value" x="319.924" y="256">26%</text></g><text class="label" x="208" y="290" text-anchor="end">Br past event archive</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 51%</title><rect class="bar s2" x="220" y="274" width="184.9" height="9" rx="2"/><text class="value" x="410.86" y="282">51%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 51%</title><rect class="bar s3" x="220" y="286" width="184.9" height="9" rx="2"/><text class="value" x="410.86" y="294">51%</text></g><text class="label" x="208" y="328" text-anchor="end">Br real domains</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 27%</title><rect class="bar s2" x="220" y="312" width="97.1" height="9" rx="2"/><text class="value" x="323.092" y="320">27%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 44%</title><rect class="bar s3" x="220" y="324" width="157.8" height="9" rx="2"/><text class="value" x="383.75199999999995" y="332">44%</text></g><text class="label" x="208" y="366" text-anchor="end">Br reset throttle</text><g><title>v0.2.14: entrypoint trace + guardrails gate: 73%</title><rect class="bar s2" x="220" y="350" width="263.1" height="9" rx="2"/><text class="value" x="489.088" y="358">73%</text></g><g><title>+ adopted rules: grounded in live introspection, one review at the end: 46%</title><rect class="bar s3" x="220" y="362" width="166.1" height="9" rx="2"/><text class="value" x="392.14" y="370">46%</text></g></svg></figure>
+
+<details class="viz-table" markdown="1">
+<summary>How sure are we?</summary>
+
+A difference is real only when its whole 95% interval sits on one side of zero. Values here are over the tasks both setups ran.
+
+| Measure | Setup | v0.2.14 gate | Setup | Difference | 95% interval | Tasks | Verdict |
+|---|---|---|---|---|---|---|---|
+| Hidden checks passed | + Grounded + one review | 54% | 44% | -10 pts | -25 pts to +2 pts | 10 | Too close to call |
+| Said done, but wasn't | + Grounded + one review | 90% | 100% | +10 pts | +0 pts to +30 pts | 10 | Too close to call |
+| Cost per task | + Grounded + one review | $2.74 | $1.75 | -$0.99 | -$1.55 to -$0.50 | 10 | Real improvement |
+
+</details>
+
+<details class="viz-table" markdown="1">
+<summary>Did the harness engage?</summary>
+
+| Setup | Trials | Guardrails loaded before the first edit | MCP and bookshelf lookups per task |
+|---|---|---|---|
+| v0.2.14 gate | 10 | 80% | 0.0 |
+| + Grounded + one review | 10 | 100% | 0.0 |
 
 </details>
 
