@@ -29,13 +29,19 @@ the moment its trigger fires — do not wait for the operator to type `/harness:
 The `skill_nudge` hook reminds you of this at session start; the reminder is the floor, not the trigger —
 reach for the skill as soon as the work matches it.
 
-## Sub-agent delegation (Bring-Your-Own agents)
-The harness ships **no** agents — you bring your own in `.claude/agents/`. When agents are
-present, route domain work to the agent that owns it rather than doing it inline, and follow the
-agent's output. When none are present, proceed directly. Keep a clear owner per domain, and use a
-dedicated reviewer agent as the final gate on code changes when one exists.
+## Agents on demand (Bring-Your-Own agents)
+The harness ships **no** agents — you bring your own in `.claude/agents/`. Write the code yourself by
+default and call an agent when it earns its cost: a design decision across several parts of the system,
+a focused second pass on a sensitive change, or large work that splits into independent parts. Each
+agent starts from scratch, so mandatory delegation multiplies cost (harness-bench F7: about 3x, for the
+same or worse results). Don't delegate small or single-file changes.
 
-> TODO: paste your delegation map here (which agent owns which domain) once you've added agents.
+## Ground every claim in the codebase
+Writing the code yourself never relaxes grounding. Structural facts about the project (schema, routes,
+types, wiring) come from live introspection — your stack's language server, schema/route tools or MCP
+server — not from grep or partial reads; cite the command that produced each one.
+
+> TODO: name your stack's introspection commands here, and which agent (if any) owns which domain.
 
 ## The delivery pipeline (Definition-of-Ready)
 Feature work flows **requirement → DoR story → prioritize → build**, enforced by the harness:
@@ -66,9 +72,13 @@ Do not say done/fixed/works/passing — or run `git commit` / `gh pr create` —
 output in the same turn proving it (run your stack's `test_command` and quote the summary). If a
 check wasn't run, say so; never claim success with errors outstanding.
 
-## Code review gate
-A code change isn't complete until your configured reviewer has reviewed it. Apply required fixes and
-re-review before reporting done or committing.
+Run the **full** suite before reporting done, and treat any red test as yours until proven otherwise —
+a change can break tests far from the files it touched.
+
+## Code review, when a change warrants it
+Run your reviewer **once**, at the end, for changes that warrant it: schema, auth, payments or data
+deletion; a sizable diff; or a new public interface. Apply its critical findings, re-run the suite, and
+finish. Skip it for small, contained changes and say so in one line, so the choice is visible.
 
 ## Git commit standards
 Write meaningful commit messages (imperative mood; say what and why). Never commit or push unless
