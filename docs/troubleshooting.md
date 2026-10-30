@@ -113,6 +113,12 @@ tool: it reads `~/.config/rails-mcp/projects.yml` and introspects by shelling in
 
 2.0.0 (fast-mcp) negotiates the handshake and Claude Code connects.
 
+## The docs header shows an older version
+The version next to the repo link is GitHub's latest **release**, not the latest tag. A tag pushed
+without a GitHub Release leaves it on the previous one; `tools/release.sh` creates both (see
+[Install](install.md)). The browser also caches it per tab, so after a release open the site in a
+new tab; a refresh keeps the old value.
+
 ## Validate a change to the harness itself
 ```sh
 claude plugin validate . --strict
