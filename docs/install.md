@@ -149,6 +149,21 @@ So the update is:
 `/plugin marketplace update` fetches whatever `ref` settings currently pins — on its own it does **not**
 move you to a newer tag; the `--apply` bump is what crosses tags.
 
+**Cutting a release (maintainers).** Merge a PR that bumps `.claude-plugin/plugin.json` and the
+README pin to the new version, pull `main`, then:
+
+```sh
+tools/release.sh v0.3.0 notes.md   # notes file optional; without it GitHub generates the notes
+```
+
+It refuses unless `HEAD` is `origin/main` with a clean tree, both files name the version, and
+`tools/ci.sh` is green. Then it pushes an annotated tag on `HEAD`, creates the GitHub Release marked
+Latest, deploys the docs, and confirms GitHub's latest release is the new tag. Each step is skipped
+when it's already done, so a failed run can be re-run; a tag already on another commit is never
+moved. The GitHub Release matters beyond the changelog: the docs header shows GitHub's latest
+release, so a tag without one leaves the site on the old version. It needs `git`, `jq`, `gh`
+(authenticated) and `uv`.
+
 **A fleet of repos.** `tools/fleet_repin.sh` opens one re-pin PR per repo. List the repos in a file,
 one per line, with the branch the PR should target. The base branch is required, not guessed:
 
