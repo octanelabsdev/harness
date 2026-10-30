@@ -76,12 +76,17 @@ tools: Read, Write, Edit, Grep, Glob, Bash
 Instructions, conventions, and the discipline this agent follows…
 ```
 Guidance:
-- **One clear owner per domain.** Route each kind of work to the agent that owns it.
+- **On demand, not mandatory.** Call an agent when it earns its cost; write small changes directly.
+  Each agent re-reads its context from scratch, and routing every change through one cost about 3x for
+  the same or worse results in harness-bench (see [Benchmarks](benchmarks.md#specialized-agents-opus)).
+- **One clear owner per domain.** When you do delegate, send each kind of work to the agent that owns it.
 - **Ground the agent in truth, not memory.** If your stack has a way to query the real project
   (a language server, a schema/route introspector, an MCP server), instruct the agent to use it
   before inferring structure from partial reads.
-- **A reviewer at the end.** Keep a review agent as the final gate before you call work done. If you run
-  the **review gate** (`components.review_gate`), your reviewer must fit the blind-review contract below.
+- **A reviewer at the end, when a change warrants it.** Run a review agent once, after the change is
+  done and the suite is green, for schema, auth, payment or sizable changes; skip it for small ones and
+  say so. If you run the **review gate** (`components.review_gate`), which reviews every change, your
+  reviewer must fit the blind-review contract below.
 
 ### The blind-review contract (for `review_gate`)
 
@@ -164,8 +169,8 @@ Notes:
   from turning grounding into a hard stop. `tome.sh` itself falls back to common shelves and reports a
   miss rather than erroring.
 
-## The delegation map
+## Which agent owns what
 
-Where you enforce "always delegate to an agent," put it in your global ruleset
-(`templates/global-CLAUDE.md` has a `TODO` slot for the delegation map). The harness provides the
-enforcement scaffolding; your ruleset + agents provide the routing.
+Say which agent owns which domain, and when work is worth delegating, in your global ruleset
+(`templates/global-CLAUDE.md` has a `TODO` slot). Keep it in that one place: a project `CLAUDE.md`
+that restates delegation rules overrides the global ones and drifts from them.
