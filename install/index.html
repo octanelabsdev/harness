@@ -1318,13 +1318,24 @@ So the update is:</p>
 </code></pre></div>
 <p><code>/plugin marketplace update</code> fetches whatever <code>ref</code> settings currently pins — on its own it does <strong>not</strong>
 move you to a newer tag; the <code>--apply</code> bump is what crosses tags.</p>
+<p><strong>Cutting a release (maintainers).</strong> Merge a PR that bumps <code>.claude-plugin/plugin.json</code> and the
+README pin to the new version, pull <code>main</code>, then:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>tools/release.sh<span class="w"> </span>v0.3.0<span class="w"> </span>notes.md<span class="w">   </span><span class="c1"># notes file optional; without it GitHub generates the notes</span>
+</code></pre></div>
+<p>It refuses unless <code>HEAD</code> is <code>origin/main</code> with a clean tree, both files name the version, and
+<code>tools/ci.sh</code> is green. Then it pushes an annotated tag on <code>HEAD</code>, creates the GitHub Release marked
+Latest, deploys the docs, and confirms GitHub's latest release is the new tag. Each step is skipped
+when it's already done, so a failed run can be re-run; a tag already on another commit is never
+moved. The GitHub Release matters beyond the changelog: the docs header shows GitHub's latest
+release, so a tag without one leaves the site on the old version. It needs <code>git</code>, <code>jq</code>, <code>gh</code>
+(authenticated) and <code>uv</code>.</p>
 <p><strong>A fleet of repos.</strong> <code>tools/fleet_repin.sh</code> opens one re-pin PR per repo. List the repos in a file,
 one per line, with the branch the PR should target. The base branch is required, not guessed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># ~/.config/harness/fleet.txt</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>~/dev/storefront<span class="w">   </span>main
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>~/dev/billing<span class="w">      </span>develop
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># ~/.config/harness/fleet.txt</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>~/dev/storefront<span class="w">   </span>main
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>~/dev/billing<span class="w">      </span>develop
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>~/harness/tools/fleet_repin.sh<span class="w"> </span>v0.3.0<span class="w"> </span>~/.config/harness/fleet.txt
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>~/harness/tools/fleet_repin.sh<span class="w"> </span>v0.3.0<span class="w"> </span>~/.config/harness/fleet.txt
 </code></pre></div>
 <p>For each repo it:</p>
 <ul>
@@ -1353,8 +1364,8 @@ the next reload. Protect your release tags (and the account: 2FA, branch/tag pro
 sha, is the real supply-chain mitigation. A branch/channel ref (<code>main</code>, <code>stable</code>) is left at ref-only so
 it can still move.</p>
 <h2 id="uninstalling">Uninstalling<a class="headerlink" href="#uninstalling" title="Permanent link">&para;</a></h2>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>/plugin<span class="w"> </span>disable<span class="w"> </span>harness@harness<span class="w">        </span><span class="c1"># stop the hooks/skills</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>/plugin<span class="w"> </span>uninstall<span class="w"> </span>harness@harness<span class="w">      </span><span class="c1"># remove it</span>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>/plugin<span class="w"> </span>disable<span class="w"> </span>harness@harness<span class="w">        </span><span class="c1"># stop the hooks/skills</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>/plugin<span class="w"> </span>uninstall<span class="w"> </span>harness@harness<span class="w">      </span><span class="c1"># remove it</span>
 </code></pre></div>
 Then delete <code>.claude/harness.json</code> and the harness keys from <code>.claude/settings.json</code> if you want it
 fully gone.</p>
