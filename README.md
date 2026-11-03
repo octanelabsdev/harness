@@ -81,7 +81,7 @@ the plugin code can't shift under you):
 ```jsonc
 {
   "extraKnownMarketplaces": {
-    "harness": { "source": { "source": "github", "repo": "octanelabsdev/harness", "ref": "v0.2.17" } }
+    "harness": { "source": { "source": "github", "repo": "octanelabsdev/harness", "ref": "v0.2.18" } }
   },
   "enabledPlugins": { "harness@harness": true }
 }
