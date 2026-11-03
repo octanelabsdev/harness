@@ -1266,7 +1266,8 @@ committed <code>settings.json</code>. No component toggle (it runs before config
 <h3 id="sessionstart-banner-session_banner">SessionStart banner (<code>session_banner</code>)<a class="headerlink" href="#sessionstart-banner-session_banner" title="Permanent link">&para;</a></h3>
 <p>Prints an environment-verified status line at the start of every session — the active config home's
 global ruleset, the harness config + stack, and your BYO agent count. Its whole point is to report
-<em>reality</em> rather than what the model remembers. Shown unless <code>components.session_banner</code> is <code>false</code>.</p>
+<em>reality</em> rather than what the model remembers. You see it as a system message at session start, and
+the model gets the same text as context. Shown unless <code>components.session_banner</code> is <code>false</code>.</p>
 <h3 id="skill-nudge-skill_nudge-sessionstart-hook">Skill nudge (<code>skill_nudge</code>) — SessionStart hook<a class="headerlink" href="#skill-nudge-skill_nudge-sessionstart-hook" title="Permanent link">&para;</a></h3>
 <p>Skills are <strong>listed, not auto-applied</strong>: at session start Claude Code registers them (availability),
 but a skill's instructions only take effect once it's invoked (activation). Without a prompt the
