@@ -40,6 +40,7 @@ HARNESS CHECK (SessionStart hook — environment-verified, not model memory):
   agents (BYO)     : $agents
 EOF
 
-printf '%s\n' "$banner"
-esc=$(printf '%s' "$banner" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null)
-[ -n "$esc" ] && printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":%s}}\n' "$esc"
+# One JSON object: systemMessage is what the operator sees, additionalContext is what the model gets.
+# Any other text on stdout makes Claude Code treat the whole thing as raw model-only context.
+jq -nc --arg b "$banner" \
+  '{systemMessage: $b, hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $b}}'

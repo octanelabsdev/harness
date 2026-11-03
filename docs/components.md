@@ -18,7 +18,8 @@ committed `settings.json`. No component toggle (it runs before config exists); o
 ### SessionStart banner (`session_banner`)
 Prints an environment-verified status line at the start of every session — the active config home's
 global ruleset, the harness config + stack, and your BYO agent count. Its whole point is to report
-*reality* rather than what the model remembers. Shown unless `components.session_banner` is `false`.
+*reality* rather than what the model remembers. You see it as a system message at session start, and
+the model gets the same text as context. Shown unless `components.session_banner` is `false`.
 
 ### Skill nudge (`skill_nudge`) — SessionStart hook
 Skills are **listed, not auto-applied**: at session start Claude Code registers them (availability),

@@ -40,7 +40,7 @@ fi
 : > "$repo/.claude/.verification-warn" 2>/dev/null || true
 
 msg="HARNESS AUTO-BOOTSTRAP: no .claude/harness.json found — detected stack '$stack' and wrote one (all components on; gates in WARN mode). Customize it with /harness:init, add your agents with /harness:agents, or set HARNESS_NO_AUTOBOOTSTRAP=1 to opt out."
-printf '%s\n' "$msg"
-esc=$(printf '%s' "$msg" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null)
-[ -n "$esc" ] && printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":%s}}\n' "$esc"
+# The operator needs to know a config was written for them, so it goes in systemMessage too.
+jq -nc --arg m "$msg" \
+  '{systemMessage: $m, hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $m}}'
 exit 0
