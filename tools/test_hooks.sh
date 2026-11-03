@@ -583,7 +583,10 @@ rm -rf "$R"
 
 # ---- skill_nudge (SessionStart) ----
 echo "skill_nudge:"
-NUDGE="$(CLAUDE_PROJECT_DIR="${TMPDIR:-/tmp}" bash "$HOOKS/skill_nudge.sh" </dev/null)"
+NUDGE_OUT="$(CLAUDE_PROJECT_DIR="${TMPDIR:-/tmp}" bash "$HOOKS/skill_nudge.sh" </dev/null)"
+[ "$(jq -s length <<< "$NUDGE_OUT" 2>/dev/null)" = 1 ] && ok "nudge stdout is exactly one JSON object" || no "nudge stdout is not a single JSON object: $NUDGE_OUT"
+jq -e 'has("systemMessage") | not' <<< "$NUDGE_OUT" >/dev/null 2>&1 && ok "nudge stays model-only (no systemMessage)" || no "nudge leaks to the operator: $NUDGE_OUT"
+NUDGE="$(jq -r '.hookSpecificOutput.additionalContext' <<< "$NUDGE_OUT" 2>/dev/null)"
 # Every guardrails playbook needs its trigger in the nudge; a new playbook fails here until added.
 declare -A TRIGGER=([CODE]="first file edit" [DEBUG]="failed command" [VERIFY]="before claiming" [TRAPS]="language trap"
                     [RUNTIME]="code path live" [MECHANISM]="external system" [PRECEDENT]="existing code as the pattern"
@@ -594,6 +597,36 @@ for f in "$HERE/../skills/guardrails/references/"*.md; do
   elif grep -qF "${TRIGGER[$p]}" <<< "$NUDGE"; then ok "nudge mentions the $p trigger"
   else no "nudge lacks the $p trigger ('${TRIGGER[$p]}')"; fi
 done
+
+# ---- session_start_banner (SessionStart) ----
+echo "session_start_banner:"
+R="$(mkrepo '{"components":{"session_banner":true},"stack":{"name":"rails"}}')"
+OUT="$(CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/session_start_banner.sh")"
+jq -e . <<< "$OUT" >/dev/null 2>&1 && [ "$(jq -s length <<< "$OUT")" = 1 ] \
+  && ok "stdout is exactly one JSON object, so Claude Code parses it" \
+  || no "banner stdout is not a single JSON object (Claude Code shows it raw to the model only): $OUT"
+jq -e '.systemMessage | test("HARNESS CHECK") and test("stack: rails")' <<< "$OUT" >/dev/null 2>&1 \
+  && ok "the operator sees the banner as a systemMessage naming the stack" \
+  || no "operator never sees the banner — no systemMessage with HARNESS CHECK + stack: $OUT"
+jq -e '.hookSpecificOutput.hookEventName == "SessionStart" and (.hookSpecificOutput.additionalContext | test("HARNESS CHECK"))' <<< "$OUT" >/dev/null 2>&1 \
+  && ok "the model still gets the banner as SessionStart additionalContext" \
+  || no "model context lost the banner: $OUT"
+printf '{"components":{"session_banner":false}}' > "$R/.claude/harness.json"
+OUT="$(CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/session_start_banner.sh")"; RC=$?
+[ -z "$OUT" ] && [ "$RC" = 0 ] && ok "components.session_banner:false prints nothing" || no "banner shown while disabled (rc=$RC): $OUT"
+rm -rf "$R"
+
+# ---- harness_bootstrap (SessionStart) ----
+echo "harness_bootstrap:"
+R="$(mkrepo '{}')"; rm -f "$R/.claude/harness.json"
+OUT="$(CLAUDE_PROJECT_DIR="$R" env -u HARNESS_NO_AUTOBOOTSTRAP bash "$HOOKS/harness_bootstrap.sh")"
+[ "$(jq -s length <<< "$OUT" 2>/dev/null)" = 1 ] && ok "bootstrap stdout is exactly one JSON object" || no "bootstrap stdout is not a single JSON object: $OUT"
+jq -e '(.systemMessage | test("AUTO-BOOTSTRAP")) and (.hookSpecificOutput.additionalContext | test("AUTO-BOOTSTRAP"))' <<< "$OUT" >/dev/null 2>&1 \
+  && ok "the operator is told a harness.json was written for them" || no "bootstrap notice never reaches the operator: $OUT"
+[ -f "$R/.claude/harness.json" ] && ok "bootstrap wrote .claude/harness.json" || no "bootstrap wrote no config"
+OUT="$(CLAUDE_PROJECT_DIR="$R" env -u HARNESS_NO_AUTOBOOTSTRAP bash "$HOOKS/harness_bootstrap.sh")"
+[ -z "$OUT" ] && ok "bootstrap is silent once a config exists" || no "bootstrap spoke over an existing config: $OUT"
+rm -rf "$R"
 
 # ---- context_warning (UserPromptSubmit) ----
 echo "context_warning:"

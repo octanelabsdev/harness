@@ -34,7 +34,6 @@ not wait to be asked and do not require a /command:
   • story-writer    → when creating or refining a work item / ticket / story before implementation
 EOF
 
-printf '%s\n' "$msg"
-esc="$(printf '%s' "$msg" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null)"
-[ -n "$esc" ] && printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":%s}}\n' "$esc"
+# Model-only directive: no systemMessage. Stdout must be this one JSON object or it isn't parsed.
+jq -nc --arg m "$msg" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $m}}'
 exit 0
