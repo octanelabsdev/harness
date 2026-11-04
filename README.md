@@ -208,4 +208,4 @@ Claude Code, plus `bash`, `git`, `jq`, and `python3`. (`ruby` if you use the sto
 
 ## License
 
-MIT.
+[MIT](LICENSE).
