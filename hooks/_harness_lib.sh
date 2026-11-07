@@ -96,3 +96,48 @@ path_under() {  # path_under <rel-path> <key>
   done < <(stack_dirs "$key")
   return 1
 }
+
+# Green test runs, recorded per working-tree hash so a gate can tell a tested tree from an untested
+# one. The record lives in the git common dir, shared by every worktree and never committed.
+harness_pass_file() { # harness_pass_file <repo>
+  local common; common="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  printf '%s' "$common/harness-test-passes"
+}
+
+# The working tree as it stands, untracked files in and ignored files out; a throwaway index keeps the
+# real one untouched. .claude/ is left out, as review_verify.sh does: it holds config, markers and the
+# review artifact, and writing a review must not make a tested tree look untested.
+harness_worktree_tree() { # harness_worktree_tree <repo>
+  local idx rc=0 tree
+  idx="$(mktemp "${TMPDIR:-/tmp}/harness-index.XXXXXX")" || return 1
+  # No real index yet (nothing ever staged): an empty file isn't a valid index, so let git start one.
+  cp "$(git -C "$1" rev-parse --path-format=absolute --git-path index)" "$idx" 2>/dev/null || rm -f "$idx"
+  tree="$(GIT_INDEX_FILE="$idx" git -C "$1" add -A 2>/dev/null &&
+          GIT_INDEX_FILE="$idx" git -C "$1" rm -r -q --cached --ignore-unmatch -- .claude >/dev/null 2>&1 &&
+          GIT_INDEX_FILE="$idx" git -C "$1" write-tree 2>/dev/null)" || rc=1
+  rm -f "$idx"
+  [ "$rc" = 0 ] && [ -n "$tree" ] && printf '%s' "$tree"
+}
+
+# HEAD's committed tree, keyed the same way (.claude/ left out) so it matches a recorded pass.
+harness_head_tree() { # harness_head_tree <repo>
+  local idx rc=0 tree
+  idx="$(mktemp "${TMPDIR:-/tmp}/harness-index.XXXXXX")" || return 1
+  rm -f "$idx"
+  tree="$(GIT_INDEX_FILE="$idx" git -C "$1" read-tree HEAD 2>/dev/null &&
+          GIT_INDEX_FILE="$idx" git -C "$1" rm -r -q --cached --ignore-unmatch -- .claude >/dev/null 2>&1 &&
+          GIT_INDEX_FILE="$idx" git -C "$1" write-tree 2>/dev/null)" || rc=1
+  rm -f "$idx"
+  [ "$rc" = 0 ] && [ -n "$tree" ] && printf '%s' "$tree"
+}
+
+harness_has_pass() { # harness_has_pass <repo> <tree> <test_command>
+  local f; f="$(harness_pass_file "$1")" || return 1
+  [ -f "$f" ] && grep -qxF "$2"$'\t'"$3" "$f"
+}
+
+harness_record_pass() { # harness_record_pass <repo> <tree> <test_command>
+  local f; f="$(harness_pass_file "$1")" || return 0
+  [ -n "$2" ] && printf '%s\t%s\n' "$2" "$3" >> "$f" 2>/dev/null
+  return 0
+}
