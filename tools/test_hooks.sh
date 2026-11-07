@@ -867,5 +867,122 @@ OUT="$(run_gg s5 Edit '{"file_path":"app/x.rb"}')"
 [ -z "$OUT" ] && ok "components.guardrails_gate:false turns it off" || no "toggle off still denied: $OUT"
 rm -rf "$R" "$GG_TMP"
 
+# ---- commit_gate (PreToolUse/PostToolUse) ----
+echo "commit_gate:"
+CG_TMP="$(mktemp -d "${TMPDIR:-/tmp}/harness-cgtest.XXXXXX")"
+R="$(mkrepo "$(jq -cn '{components:{verification_gate:true},stack:{impl_dirs:["lib"],test_command:"bash t.sh"}}')")"
+cat > "$R/t.sh" <<EOF
+echo run >> "$CG_TMP/runs"
+[ -f "$CG_TMP/red" ] && { echo "3 runs, 1 failures"; exit 1; }
+echo "3 runs, 3 assertions, 0 failures"
+EOF
+printf 'v1\n' > "$R/lib/a.rb"
+git -C "$R" add -A && git -C "$R" commit -qm base
+run_cg() { # run_cg <event> <command> [tool_use_id] [interrupted] -> hook stdout
+  TMPDIR="$CG_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/commit_gate.sh" <<< \
+    "$(jq -nc --arg e "$1" --arg c "$2" --arg id "${3:-}" --argjson i "${4:-false}" --arg d "$R" \
+      '{hook_event_name:$e,tool_name:"Bash",tool_input:{command:$c},tool_use_id:$id,cwd:$d,tool_response:{interrupted:$i}}')"
+}
+runs() { [ -f "$CG_TMP/runs" ] && wc -l < "$CG_TMP/runs" | tr -d ' ' || echo 0; }
+
+printf 'notes\n' > "$R/docs/notes.md"
+OUT="$(run_cg PreToolUse 'git commit -am "docs"')"
+[ -z "$OUT" ] && [ "$(runs)" = 0 ] && ok "a commit with no implementation change isn't gated" || no "docs-only commit gated: $OUT"
+printf 'v2\n' > "$R/lib/a.rb"
+OUT="$(run_cg PreToolUse 'git commit -am "change a"')"
+! denied "$OUT" && grep -q "green" <<< "$OUT" && [ "$(runs)" = 1 ] && ok "with no recorded pass, the gate runs the suite and allows the commit on green" || no "green run: runs=$(runs) out=$OUT"
+OUT="$(run_cg PreToolUse 'git commit -am "change a"')"
+[ -z "$OUT" ] && [ "$(runs)" = 1 ] && ok "the same tree again doesn't rerun the suite" || no "cached tree reran: runs=$(runs) out=$OUT"
+
+printf 'v3\n' > "$R/lib/a.rb"; : > "$CG_TMP/red"
+OUT="$(run_cg PreToolUse 'cd '"$R"' && git add lib && git commit -m "v3"')"
+denied "$OUT" && grep -q "test_command failed" <<< "$OUT" && grep -q "1 failures" <<< "$OUT" && ok "a red suite denies the commit and shows the failing output" || no "red suite not denied: $OUT"
+OUT="$(run_cg PreToolUse 'git commit -F - <<EOF
+Fix "git push" docs
+EOF')"
+denied "$OUT" && ok "a commit with its message in a heredoc is still gated" || no "heredoc commit not gated: $OUT"
+
+rm -f "$CG_TMP/red"; before=$(runs)
+run_cg PreToolUse 'caffeinate -i -s bash t.sh > /tmp/ci.log 2>&1' t1 > /dev/null
+run_cg PostToolUse 'caffeinate -i -s bash t.sh > /tmp/ci.log 2>&1' t1 > /dev/null
+OUT="$(run_cg PreToolUse 'git commit -am "v3"')"
+[ -z "$OUT" ] && [ "$(runs)" = "$before" ] && ok "a plain test_command run that exits 0 counts for its tree" || no "plain run not recorded: runs=$(runs) out=$OUT"
+
+printf 'v4\n' > "$R/lib/a.rb"; : > "$CG_TMP/red"
+run_cg PreToolUse 'bash t.sh 2>&1 | tail -3' t2 > /dev/null
+run_cg PostToolUse 'bash t.sh 2>&1 | tail -3' t2 > /dev/null
+run_cg PreToolUse 'bash t.sh; echo "EXIT=$?"' t3 > /dev/null
+run_cg PostToolUse 'bash t.sh; echo "EXIT=$?"' t3 > /dev/null
+run_cg PreToolUse 'bash t.sh' t4 > /dev/null
+run_cg PostToolUse 'bash t.sh' t4 true > /dev/null
+run_cg PreToolUse 'bash t.sh' t5 > /dev/null
+OUT="$(run_cg PreToolUse 'git commit -am "v4"')"
+denied "$OUT" && ok "piped, '; echo', interrupted and failed runs don't count as passes" || no "an untrustworthy run counted: $OUT"
+rm -f "$CG_TMP/red"
+
+touch "$R/.claude/.verification-warn"; before=$(runs)
+OUT="$(run_cg PreToolUse 'git commit -am "v4"')"
+! denied "$OUT" && grep -q "warn only" <<< "$OUT" && [ "$(runs)" = "$before" ] && ok ".verification-warn downgrades the gate to a warning that doesn't run the suite" || no "warn mode: runs=$(runs) out=$OUT"
+rm -f "$R/.claude/.verification-warn"
+jq '.components.commit_gate = false' "$R/.claude/harness.json" > "$CG_TMP/h.json" && cp "$CG_TMP/h.json" "$R/.claude/harness.json"
+OUT="$(run_cg PreToolUse 'git commit -am "v4"')"
+[ -z "$OUT" ] && ok "components.commit_gate:false turns it off" || no "toggle off still gated: $OUT"
+jq 'del(.components.commit_gate) | .components.verification_gate = false' "$R/.claude/harness.json" > "$CG_TMP/h.json" && cp "$CG_TMP/h.json" "$R/.claude/harness.json"
+OUT="$(run_cg PreToolUse 'git commit -am "v4"')"
+[ -z "$OUT" ] && ok "off by default when verification_gate is off" || no "gated with verification_gate off: $OUT"
+jq '.components.verification_gate = true' "$R/.claude/harness.json" > "$CG_TMP/h.json" && cp "$CG_TMP/h.json" "$R/.claude/harness.json"
+
+OUT="$(run_cg PreToolUse 'git commit -am "v4"')"; before=$(runs)
+git -C "$R" add -A && git -C "$R" commit -qm v4
+OUT="$(run_cg PreToolUse 'git push -u origin feature')"
+[ -z "$OUT" ] && [ "$(runs)" = "$before" ] && ok "a pass recorded before the commit covers the push" || no "push after green commit: runs=$(runs) out=$OUT"
+printf 'v6\n' > "$R/lib/a.rb"
+OUT="$(run_cg PreToolUse 'gh pr create --fill')"
+[ -z "$OUT" ] && ok "a dirty working tree doesn't block a push when HEAD itself passed" || no "push of a tested HEAD denied: $OUT"
+printf 'v5\n' > "$R/lib/a.rb"; git -C "$R" commit -qam v5; printf 'v6\n' > "$R/lib/a.rb"; before=$(runs)
+OUT="$(run_cg PreToolUse 'gh pr create --fill')"
+denied "$OUT" && grep -q "uncommitted implementation changes" <<< "$OUT" && [ "$(runs)" = "$before" ] && ok "an untested HEAD with uncommitted changes is denied without running the suite" || no "dirty push not denied: runs=$(runs) $OUT"
+git -C "$R" checkout -q -- lib/a.rb
+
+jq '.stack.test_timeout_sec = 900' "$R/.claude/harness.json" > "$CG_TMP/h.json" && cp "$CG_TMP/h.json" "$R/.claude/harness.json"
+OUT="$(TMPDIR="$CG_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/commit_gate.sh" <<< \
+  "$(jq -nc --arg d "$R" '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_use_id:"s1",cwd:$d,tool_input:{command:"caffeinate -i -s bash t.sh > /dev/null 2>&1",description:"run the suite",timeout:900000}}')")"
+new_cmd="$(jq -r '.hookSpecificOutput.updatedInput.command // empty' <<< "$OUT")"
+[[ "$new_cmd" == *"tools/run_tests.sh' --timeout 900 --wait 600 -- 'caffeinate -i -s bash t.sh > /dev/null 2>&1'"* ]] &&
+  ok "a plain test run is rewritten to go through run_tests.sh with the configured timeout" || no "plain run not rewritten: $OUT"
+[ "$(jq -r '.hookSpecificOutput.updatedInput | "\(.description)|\(.timeout)"' <<< "$OUT")" = "run the suite|900000" ] &&
+  ok "the rewrite keeps the rest of the tool input" || no "rewrite dropped tool input fields: $OUT"
+(cd "$CG_TMP" && bash -c "$new_cmd") && ok "the rewritten command runs the suite and exits 0 on green" || no "rewritten command failed on green"
+: > "$CG_TMP/red"
+(cd "$CG_TMP" && bash -c "$new_cmd") && no "rewritten command exited 0 on red" || ok "the rewritten command exits non-zero on red, so it can't be recorded as a pass"
+rm -f "$CG_TMP/red"
+jq '.stack.test_lock_wait_sec = 1' "$R/.claude/harness.json" > "$CG_TMP/h.json" && cp "$CG_TMP/h.json" "$R/.claude/harness.json"
+held_cmd="$(jq -r '.hookSpecificOutput.updatedInput.command' <<< "$(run_cg PreToolUse 'bash t.sh' s2)")"
+lockdir="$(git -C "$R" rev-parse --path-format=absolute --git-common-dir)/harness-test.lock"
+mkdir "$lockdir" && printf '%s %s 600 %s\n' "$$" "$(date +%s)" "$(hostname)" > "$lockdir/owner"
+before=$(runs); rc=0; (cd "$CG_TMP" && bash -c "$held_cmd") > /dev/null 2>&1 || rc=$?
+[ "$rc" = 3 ] && [ "$(runs)" = "$before" ] && ok "while another suite holds the lock, the rewritten run waits and never runs alongside it" || no "rewritten run ignored the lock: rc=$rc runs=$(runs)"
+rm -rf "$lockdir"
+jq 'del(.stack.test_lock_wait_sec)' "$R/.claude/harness.json" > "$CG_TMP/h.json" && cp "$CG_TMP/h.json" "$R/.claude/harness.json"
+OUT="$(run_cg PreToolUse "cd \"$R\" && bash t.sh")"
+(cd "$CG_TMP" && bash -c "$(jq -r '.hookSpecificOutput.updatedInput.command' <<< "$OUT")") && ok "a quoted cd survives the rewrite" || no "quoted cd broke the rewrite: $OUT"
+OUT="$(run_cg PreToolUse 'tools/run_tests.sh --wait 60 -- bash t.sh')"
+[ -z "$(jq -r '.hookSpecificOutput.updatedInput // empty' <<< "$OUT" 2>/dev/null)" ] && ok "a run already going through run_tests.sh isn't rewritten" || no "run_tests.sh run rewritten again: $OUT"
+OUT="$(run_cg PreToolUse 'bash t.sh 2>&1 | tail -3')"
+[ -z "$OUT" ] && ok "a piped run isn't rewritten" || no "piped run rewritten: $OUT"
+OUT="$(TMPDIR="$CG_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/commit_gate.sh" <<< \
+  "$(jq -nc --arg d "$R" '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_use_id:"bg1",cwd:$d,tool_input:{command:"bash t.sh",run_in_background:true}}')")"
+common_dir="$(git -C "$R" rev-parse --path-format=absolute --git-common-dir)"
+grep -q "run_tests.sh" <<< "$OUT" && [ ! -f "$common_dir/harness-test-pending/bg1" ] && ok "a background run is serialized but never recorded as a pass" || no "background run: $OUT"
+
+for c in 'echo "git commit -am x"' 'git commit --dry-run -a' 'git log --oneline -3'; do
+  OUT="$(run_cg PreToolUse "$c")"
+  [ -z "$OUT" ] && ok "not a commit or push: $c" || no "gated a non-ship command: $c"
+done
+cg_pre="$(jq -r '[.hooks.PreToolUse[] | select(.matcher == "Bash") | .hooks[] | select(.command | test("commit_gate")) | .timeout][0] // empty' "$HOOKS/hooks.json")"
+cg_post="$(jq -r '[.hooks.PostToolUse[] | select(.matcher == "Bash") | .hooks[].command | select(test("commit_gate"))] | length' "$HOOKS/hooks.json")"
+[ "$cg_pre" = 1800 ] && [ "$cg_post" = 1 ] && ok "hooks.json routes Bash Pre/PostToolUse to the gate, with room to run the suite" || no "commit_gate routing: pre timeout=$cg_pre post=$cg_post"
+rm -rf "$R" "$CG_TMP"
+
 echo
 if [ "$fail" = 0 ]; then echo "OK: hook tests passed ($pass)."; exit 0; else echo "FAIL: $fail hook test(s), $pass passed." >&2; exit 1; fi

@@ -107,6 +107,43 @@ validate after the commit. An artifact without a full-sha `base` is checked the 
 only while the reviewed changes are uncommitted. This replaces the old `.claude/.last-review` check, which
 compared a model-written marker to HEAD and couldn't tell a real review from a claimed one.
 
+### Commit gate (`commit_gate`) — PreToolUse/PostToolUse hook
+`git commit`, `git push` and `gh pr create` need a green `test_command` run on the exact tree being
+shipped. A pass is recorded against a hash of the working tree (untracked files included, ignored
+files left out), so it covers that content only. Any edit afterwards needs a new run.
+
+A pass is recorded two ways:
+
+- **The agent runs `test_command` as a command of its own and it exits 0.** A leading `cd`,
+  `caffeinate`/`time`, `tools/run_tests.sh … --` and trailing redirects are fine (`bin/ci > $TMPDIR/ci.log 2>&1`).
+  A pipe or `; echo "EXIT=$?"` hides the exit code, so those runs don't count. Background and
+  interrupted runs don't count either.
+- **The gate runs it.** With no pass for the tree, the gate runs `test_command` itself, through
+  `tools/run_tests.sh` with the same timeout and lock settings as the verification gate. It allows on
+  green and records the pass. On red it denies and shows the last 40 lines of output.
+
+An agent's plain `test_command` run (including a background run) is rewritten to go through
+`tools/run_tests.sh`, with the configured `test_timeout_sec` and `test_lock_wait_sec`. Every suite then
+takes the same repo-wide lock as the gates, so two runs never share a test database. The original
+command, including its `cd` and redirects, runs unchanged inside the runner. The rewrite uses
+PreToolUse `updatedInput`, so permission rules are checked against the rewritten command: an allow
+rule for plain `bin/ci` won't cover it. Commands that already call `run_tests.sh`, and compound
+commands such as `bin/ci; echo …`, aren't rewritten.
+
+Only commits and pushes that touch the implementation surface (`impl_dirs`) are gated. A commit counts
+when the working tree has implementation changes. A push or PR counts when HEAD differs from its
+upstream (or `origin/HEAD`, `origin/main`, `origin/master`) in `impl_dirs`. A push with uncommitted
+implementation changes checks HEAD's own tree and never runs the suite, because the working tree isn't
+what gets pushed.
+
+A message or note that only mentions `git commit` (in quotes or a heredoc) isn't gated, and neither is
+`--dry-run`. The gate checks the repo the command acts on: a leading `cd`, `git -C`, or the shell's
+current directory.
+
+**On** whenever `verification_gate` is on; set `components.commit_gate` to `false` to turn it off.
+`.claude/.verification-warn` downgrades it to a warning that never runs the suite. Its PreToolUse
+timeout is 1800s, like the Stop hook's, so the gate has room to run the suite.
+
 ### Pipeline gate (`pipeline_gate`) — PreToolUse hook
 Before an `Edit`/`Write` to the implementation surface (`impl_dirs`), it requires either:
 - a story at `.claude/current-story.yaml` that PASSES the DoR lint (`dor_lint` exit 0 — the gate runs it; the verdict is computed, not a self-written stamp), or

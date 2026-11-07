@@ -13,6 +13,7 @@ enforcing gates stay inert.
     "skill_nudge":       true,   // SessionStart nudge to invoke skills (default on)
     "context_warning":   true,   // UserPromptSubmit warning at 100K/150K/250K tokens (default on)
     "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
+    "commit_gate":       true,   // PreToolUse — commit/push/PR needs a green test_command run on that tree (default: follows verification_gate)
     "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
     "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied up to 3 times (default on)
     "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
@@ -62,7 +63,10 @@ enforcing gates stay inert.
   **blocks** on a `test_command` failure (opt down with `.claude/.verification-warn`). `review_gate`
   (also part of the verification-gate Stop hook, opt-in) additionally requires a **verified blind-review
   artifact** for the current diff — produced by the `blind-review` skill, checked by
-  `tools/review_verify.sh`; same `.claude/.verification-warn` downgrade. (The `harness_bootstrap` hook
+  `tools/review_verify.sh`; same `.claude/.verification-warn` downgrade. `commit_gate` follows
+  `verification_gate` unless set explicitly. It gates `git commit`, `git push` and `gh pr create` on a
+  green `test_command` run for the tree being shipped, and runs the suite itself when there isn't one.
+  It uses the same `.claude/.verification-warn` downgrade. (The `harness_bootstrap` hook
   has no toggle — it only acts when there's no config yet; see [components.md](components.md).)
 - **`context_warning.steps`** (optional) — the context sizes, in tokens, at which the context warning
   fires once each. `HARNESS_CONTEXT_STEPS` (a comma list) in the environment overrides it, which suits
