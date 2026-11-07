@@ -4,12 +4,13 @@
 # When a turn ends with implementation code changed (per the stack profile's impl_dirs), it RUNS the
 # project's canonical test_command and BLOCKS if it fails — a red test is a fact, not a judgment, so
 # it is safe to block on. It also reminds (advisory) when a UI/impl change shipped without an
-# operator-journey test. Inert unless components.verification_gate is true in .claude/harness.json.
+# operator-journey test. Inert unless components.verification_gate is true in .claude/harness.json; a
+# git repo with no harness.json runs it warn-only from the detected stack preset.
 #
 # Enforcement posture: a test_command failure BLOCKS by default (locked decision — Layer-0 checks are
 # deterministic). Adopters rolling out gradually can downgrade to warn-only by creating
-# .claude/.verification-warn (a failure is then surfaced but does not block). The operator-test check
-# is always advisory — it is a heuristic, not a pass/fail.
+# .claude/.verification-warn (a failure is then surfaced but does not block); a repo with no harness.json
+# runs this way too. The operator-test check is always advisory — it is a heuristic, not a pass/fail.
 #
 # Stop-hook mechanics (verified against the hooks guide): exit 2 prevents the stop and continues the
 # conversation so Claude addresses the gap; exit 0 lets the turn end. The stop_hook_active guard keeps
@@ -101,8 +102,8 @@ if [ -n "$test_cmd" ] || [ "$raw_cmd" = auto ]; then
       printf '%s\n' "$test_out" | tail -n 40
       [ -n "$op_note" ] && echo "$op_note"
     } >&2
-    if [ -f "$repo/.claude/.verification-warn" ]; then
-      echo "(.claude/.verification-warn present — warn-only, not blocking.)" >&2
+    if harness_verification_warn; then
+      echo "(warn-only — .claude/.verification-warn is present or the repo has no harness.json; not blocking.)" >&2
       exit 0
     fi
     exit 2
@@ -115,8 +116,8 @@ if [ "$review_gate" = "true" ]; then
   rv="$HERE/../tools/review_verify.sh"
   if [ -f "$rv" ] && ! rv_out="$(bash "$rv" 2>&1)"; then
     { echo "VERIFICATION GATE — code review not satisfied for the current diff:"; printf '%s\n' "$rv_out"; } >&2
-    if [ -f "$repo/.claude/.verification-warn" ]; then
-      echo "(.claude/.verification-warn present — warn-only, not blocking.)" >&2
+    if harness_verification_warn; then
+      echo "(warn-only — .claude/.verification-warn is present or the repo has no harness.json; not blocking.)" >&2
     else
       exit 2
     fi

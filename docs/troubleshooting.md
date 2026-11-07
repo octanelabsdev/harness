@@ -1,9 +1,10 @@
 # Troubleshooting & FAQ
 
 ## The banner says `harness: NOT configured`
-There's no `.claude/harness.json` in the project (or you're above the repo root). Run
-`~/harness/install.sh .` in the project. The plugin can be enabled but the enforcing gates stay
-inert until the config exists — that's by design.
+There's no `.claude/harness.json` and you're not inside a git repo (or you're above the repo root).
+Run `~/harness/install.sh .` in the project. Outside a git repo, the enforcing gates stay inert.
+Inside a git repo with no config, the banner instead says it's using the detected preset in memory.
+See [the implicit profile](configuration.md#no-config-the-implicit-profile).
 
 ## The banner doesn't appear at all
 - The plugin isn't picked up yet — **restart Claude Code** (or run `/config` once) after installing.
