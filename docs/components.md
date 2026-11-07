@@ -126,6 +126,19 @@ through, so an agent that can't load the skill is never stuck. (A single deny wa
 retried straight through it in 4 of 29 bench runs.) The gate notices the skill load from the `Skill` call itself, so it
 works in headless runs with no saved transcript (`claude -p --no-session-persistence`).
 
+Compaction resets the gate. Compacting drops the skill from context, so after a `/compact` or an
+auto-compact the main agent's next edit waits for the skill again, with a fresh count of three denies.
+A guardrails Skill call from before the last compaction no longer counts. Reading `CODE.md` (with
+the Read tool or a shell command such as `cat`) counts as loading the skill.
+
+Writes outside the repo are not gated, so vault notes and scratch logs never wait on the skill. For
+`Edit`/`Write` that means an absolute path outside the repo and all its git worktrees. For Bash it
+means every write in the command is a redirect (`>`, `>>`) or `tee` whose target resolves outside
+the repo: `~`, `$HOME`, `$TMPDIR`, variables set earlier in the same command, and a leading `cd`
+are resolved. Anything else (`sed -i`, `cp`, an unset variable, a relative path with no `cd`, a
+heredoc fed to anything but `cat` or `tee`) stays gated. Bash denies have their own count of three,
+so a write the gate can't resolve never uses up the denies that guard file edits.
+
 Why it exists: in harness-bench runs, a third of agents never loaded guardrails despite the
 SessionStart nudge. They edited through `sed -i` and heredocs, where no file-tool hook fires, and
 they were the runs that took the bait. **On** by default; set `components.guardrails_gate` to `false`

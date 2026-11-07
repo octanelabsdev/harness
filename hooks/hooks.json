@@ -7,6 +7,12 @@
           { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session_start_banner.sh\"" },
           { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/skill_nudge.sh\"" }
         ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/guardrails_gate.sh\"" }
+        ]
       }
     ],
     "UserPromptSubmit": [
