@@ -38,6 +38,7 @@ target_dir() {
 
 repo=$(git -C "$(target_dir "$cmd")" rev-parse --show-toplevel 2>/dev/null) || exit 0
 export CLAUDE_PROJECT_DIR="$repo"   # read that repo's harness.json, not the session's
+harness_load_cfg
 
 [ "$(hcfg '.components."commit_gate"' "$(hcfg '.components."verification_gate"' 'false')")" = true ] || exit 0
 raw_cmd="$(hcfg '.stack.test_command' '')"

@@ -44,8 +44,9 @@ you which components you want, and can't ship a global ruleset. So:
 - **The installer** does the interactive selection, writes the config, enables the plugin, and
   (optionally) drops a generic global ruleset.
 
-A hook with no `harness.json` is **inert** — installing the plugin never intrudes until a project
-opts in via config.
+A git repo with no `harness.json` gets a minimal profile held in memory, from the detected stack's
+preset. The commit gate enforces, the verification gate only warns, and everything else stays off.
+Nothing is written to the repo. Outside a git repo, the hooks are inert.
 
 ## Config-driven, not framework-coded
 

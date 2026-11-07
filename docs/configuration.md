@@ -1,8 +1,26 @@
 # Configuration: `.claude/harness.json`
 
 The harness is config-driven. One file per project — `.claude/harness.json` — declares which
-components are active and describes your stack. The hooks read it at runtime; with no file, the
-enforcing gates stay inert.
+components are active and describes your stack. The hooks read it at runtime. With no file, a git
+repo gets the implicit profile described below.
+
+## No config: the implicit profile
+
+A git repo with no `.claude/harness.json` (for example with `HARNESS_NO_AUTOBOOTSTRAP=1`, which
+stops the harness writing one) isn't left unguarded. The hooks detect the stack, the same way
+auto-bootstrap does, and use that preset in memory:
+
+- **`commit_gate` enforces.** A commit, push or PR that touches the preset's `impl_dirs` needs a
+  green run of the preset's `test_command` on that tree.
+- **`verification_gate` warns.** At Stop it runs the suite and reports a failure, but doesn't block,
+  as if `.claude/.verification-warn` were present.
+- **Everything else stays off** (`pipeline_gate`, `review_gate`). The on-by-default hooks behave as
+  usual.
+
+Nothing is written to the repo. Pass records live in the git directory, not the working tree. The
+`generic` preset has no `test_command`, so a repo with no detected stack gets no gates. The
+SessionStart banner says when the implicit profile is in use. Outside a git repo, the hooks stay
+inert.
 
 ## Schema
 

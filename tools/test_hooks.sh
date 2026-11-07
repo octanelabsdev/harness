@@ -984,5 +984,46 @@ cg_post="$(jq -r '[.hooks.PostToolUse[] | select(.matcher == "Bash") | .hooks[].
 [ "$cg_pre" = 1800 ] && [ "$cg_post" = 1 ] && ok "hooks.json routes Bash Pre/PostToolUse to the gate, with room to run the suite" || no "commit_gate routing: pre timeout=$cg_pre post=$cg_post"
 rm -rf "$R" "$CG_TMP"
 
+# ---- implicit profile: a git repo with no harness.json ----
+echo "implicit profile:"
+IP_TMP="$(mktemp -d "${TMPDIR:-/tmp}/harness-iptest.XXXXXX")"
+R="$(mkrepo '{}')"; rm -f "$R/.claude/harness.json"
+mkdir -p "$R/src" "$IP_TMP/bin"
+printf '{"name":"x","scripts":{"test":"true"}}\n' > "$R/package.json"
+printf 'v1\n' > "$R/src/a.js"
+git -C "$R" add -A && git -C "$R" commit -qm base
+cat > "$IP_TMP/bin/npm" <<EOF
+#!/usr/bin/env bash
+[ -f "$IP_TMP/red" ] && { echo "4 tests, 1 failures"; exit 1; }
+echo "4 tests, 0 failures"
+EOF
+chmod +x "$IP_TMP/bin/npm"
+ip_cg() { # ip_cg <command> -> commit gate stdout
+  PATH="$IP_TMP/bin:$PATH" TMPDIR="$IP_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/commit_gate.sh" <<< \
+    "$(jq -nc --arg c "$1" --arg d "$R" '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:$c},cwd:$d}')"
+}
+
+printf 'v2\n' > "$R/src/a.js"; : > "$IP_TMP/red"
+OUT="$(ip_cg 'git commit -am "v2"')"
+denied "$OUT" && grep -q "npm test" <<< "$OUT" && ok "with no harness.json, the commit gate enforces with the detected stack's test command" || no "implicit commit gate didn't deny a red suite: $OUT"
+rm -f "$IP_TMP/red"
+OUT="$(ip_cg 'git commit -am "v2"')"
+! denied "$OUT" && grep -q "green" <<< "$OUT" && ok "and allows the commit once the suite is green" || no "implicit commit gate on green: $OUT"
+[ ! -e "$R/.claude/harness.json" ] && [ -z "$(git -C "$R" status --porcelain -- .claude)" ] && ok "the implicit profile writes nothing into the repo" || no "implicit profile wrote into the repo"
+
+: > "$IP_TMP/red"
+OUT="$(PATH="$IP_TMP/bin:$PATH" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/verification_gate.sh" <<< '{"stop_hook_active":false}' 2>&1 1>/dev/null)"; RC=$?
+[ "$RC" = 0 ] && grep -q "test_command failed" <<< "$OUT" && grep -q "warn-only" <<< "$OUT" && ok "with no harness.json, a red suite at Stop warns instead of blocking" || no "implicit Stop gate: rc=$RC out=$OUT"
+rm -f "$IP_TMP/red"
+OUT="$(run_pre "$R" "$R/src/a.js")"
+[ -z "$OUT" ] && ok "the pipeline gate stays off with no harness.json" || no "pipeline gate ran implicitly: $OUT"
+OUT="$(CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/session_start_banner.sh")"
+jq -r .systemMessage <<< "$OUT" | grep -q "detected 'node' preset" && ok "the banner says the detected preset is in use" || no "banner doesn't name the implicit profile: $OUT"
+
+ND="$(mktemp -d "${TMPDIR:-/tmp}/harness-nogit.XXXXXX")"; printf '{}' > "$ND/package.json"; mkdir -p "$ND/src"; : > "$ND/src/a.js"
+OUT="$(PATH="$IP_TMP/bin:$PATH" CLAUDE_PROJECT_DIR="$ND" bash "$HOOKS/verification_gate.sh" <<< '{"stop_hook_active":false}' 2>&1)"; RC=$?
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "outside a git repo, the gates stay inert" || no "non-git dir: rc=$RC out=$OUT"
+rm -rf "$R" "$IP_TMP" "$ND"
+
 echo
 if [ "$fail" = 0 ]; then echo "OK: hook tests passed ($pass)."; exit 0; else echo "FAIL: $fail hook test(s), $pass passed." >&2; exit 1; fi

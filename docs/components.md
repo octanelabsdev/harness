@@ -64,7 +64,9 @@ When a turn ends with implementation code changed (per `impl_dirs`), it **runs t
 `test_command`** and **blocks** (`exit 2`) if it fails — a red test is a fact, not a judgment, so it
 is safe to block on. It also **advises** (never blocks) when a UI/impl change (per `ui_dirs`) shipped
 without a change under `operator_test_dir` — i.e. no operator-journey test. It short-circuits on
-`stop_hook_active` so it can never loop. Inert unless `components.verification_gate` is `true`.
+`stop_hook_active` so it can never loop. Inert unless `components.verification_gate` is `true`. A git
+repo with no `harness.json` runs it **warn-only** from the detected stack preset (see
+[configuration.md](configuration.md#no-config-the-implicit-profile)).
 
 A `test_command` failure **blocks by default**. Rolling out gradually? `touch .claude/.verification-warn`
 to downgrade to warn-only (the failure is surfaced but doesn't block). A Stop hook's `exit 2` prevents

@@ -29,6 +29,8 @@ if [ -n "$cfg" ]; then
   stack="$(hcfg '.stack.name' 'unknown')"
   comps="$(jq -r '.components | to_entries | map(select(.value==true)) | map(.key) | join(", ")' "$cfg" 2>/dev/null)"
   cfgline="configured (stack: $stack; active: ${comps:-none})"
+elif [ -n "$(harness_implicit_profile)" ]; then
+  cfgline="no .claude/harness.json — using the detected '$(hcfg '.stack.name' 'generic')' preset in memory (commit gate enforcing, verification gate warn-only)"
 else
   cfgline="NOT configured (run the harness installer)"
 fi
