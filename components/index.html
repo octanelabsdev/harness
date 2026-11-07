@@ -1371,20 +1371,23 @@ compared a model-written marker to HEAD and couldn't tell a real review from a c
 <h3 id="commit-gate-commit_gate-pretooluseposttooluse-hook">Commit gate (<code>commit_gate</code>) — PreToolUse/PostToolUse hook<a class="headerlink" href="#commit-gate-commit_gate-pretooluseposttooluse-hook" title="Permanent link">&para;</a></h3>
 <p><code>git commit</code>, <code>git push</code> and <code>gh pr create</code> need a green <code>test_command</code> run on the exact tree being
 shipped. A pass is recorded against a hash of the working tree (untracked files included, ignored
-files left out), so it covers that content only. Any edit afterwards needs a new run.</p>
-<p>A pass is recorded two ways:</p>
+files and <code>.claude/</code> left out), so it covers that content only. Any edit afterwards needs a new run;
+writing a review or a marker under <code>.claude/</code> doesn't.</p>
+<p>A pass is recorded three ways:</p>
 <ul>
 <li><strong>The agent runs <code>test_command</code> as a command of its own and it exits 0.</strong> A leading <code>cd</code>,
   <code>caffeinate</code>/<code>time</code>, <code>tools/run_tests.sh … --</code> and trailing redirects are fine (<code>bin/ci &gt; $TMPDIR/ci.log 2&gt;&amp;1</code>).
   A pipe or <code>; echo "EXIT=$?"</code> hides the exit code, so those runs don't count. Background and
   interrupted runs don't count either.</li>
+<li><strong>The verification gate's green run at Stop.</strong> A commit right after a green Stop doesn't rerun the
+  suite. The Stop gate itself still runs the suite every time.</li>
 <li><strong>The gate runs it.</strong> With no pass for the tree, the gate runs <code>test_command</code> itself, through
   <code>tools/run_tests.sh</code> with the same timeout and lock settings as the verification gate. It allows on
   green and records the pass. On red it denies and shows the last 40 lines of output.</li>
 </ul>
 <p>An agent's plain <code>test_command</code> run (including a background run) is rewritten to go through
 <code>tools/run_tests.sh</code>, with the configured <code>test_timeout_sec</code> and <code>test_lock_wait_sec</code>. Every suite then
-takes the same repo-wide lock as the gates, so two runs never share a test database. The original
+takes the same repo-wide lock as the gates and waits for any other suite instead of overlapping it. The original
 command, including its <code>cd</code> and redirects, runs unchanged inside the runner. The rewrite uses
 PreToolUse <code>updatedInput</code>, so permission rules are checked against the rewritten command: an allow
 rule for plain <code>bin/ci</code> won't cover it. Commands that already call <code>run_tests.sh</code>, and compound
@@ -1397,6 +1400,10 @@ what gets pushed.</p>
 <p>A message or note that only mentions <code>git commit</code> (in quotes or a heredoc) isn't gated, and neither is
 <code>--dry-run</code>. The gate checks the repo the command acts on: a leading <code>cd</code>, <code>git -C</code>, or the shell's
 current directory.</p>
+<p>With <code>components.review_gate</code> on, the blind review must also cover the tree being shipped:
+<code>tools/review_verify.sh</code> has to pass, as at Stop. This is checked before the suite, so a missing,
+stale or changes-requested review denies without a test run. A review stamped with its <code>base</code> stays
+fresh through the commit and the push, and any edit after it makes it stale.</p>
 <p><strong>On</strong> whenever <code>verification_gate</code> is on; set <code>components.commit_gate</code> to <code>false</code> to turn it off.
 <code>.claude/.verification-warn</code> downgrades it to a warning that never runs the suite. Its PreToolUse
 timeout is 1800s, like the Stop hook's, so the gate has room to run the suite.</p>
