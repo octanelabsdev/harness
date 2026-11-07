@@ -1360,6 +1360,17 @@ loading the skill is denied again, up to <strong>three times</strong> per sessio
 through, so an agent that can't load the skill is never stuck. (A single deny wasn't enough: Haiku 5.5
 retried straight through it in 4 of 29 bench runs.) The gate notices the skill load from the <code>Skill</code> call itself, so it
 works in headless runs with no saved transcript (<code>claude -p --no-session-persistence</code>).</p>
+<p>Compaction resets the gate. Compacting drops the skill from context, so after a <code>/compact</code> or an
+auto-compact the main agent's next edit waits for the skill again, with a fresh count of three denies.
+A guardrails Skill call from before the last compaction no longer counts. Reading <code>CODE.md</code> (with
+the Read tool or a shell command such as <code>cat</code>) counts as loading the skill.</p>
+<p>Writes outside the repo are not gated, so vault notes and scratch logs never wait on the skill. For
+<code>Edit</code>/<code>Write</code> that means an absolute path outside the repo and all its git worktrees. For Bash it
+means every write in the command is a redirect (<code>&gt;</code>, <code>&gt;&gt;</code>) or <code>tee</code> whose target resolves outside
+the repo: <code>~</code>, <code>$HOME</code>, <code>$TMPDIR</code>, variables set earlier in the same command, and a leading <code>cd</code>
+are resolved. Anything else (<code>sed -i</code>, <code>cp</code>, an unset variable, a relative path with no <code>cd</code>, a
+heredoc fed to anything but <code>cat</code> or <code>tee</code>) stays gated. Bash denies have their own count of three,
+so a write the gate can't resolve never uses up the denies that guard file edits.</p>
 <p>Why it exists: in harness-bench runs, a third of agents never loaded guardrails despite the
 SessionStart nudge. They edited through <code>sed -i</code> and heredocs, where no file-tool hook fires, and
 they were the runs that took the bait. <strong>On</strong> by default; set <code>components.guardrails_gate</code> to <code>false</code>
