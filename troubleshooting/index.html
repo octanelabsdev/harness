@@ -1270,9 +1270,10 @@
 
 <h1 id="troubleshooting-faq">Troubleshooting &amp; FAQ<a class="headerlink" href="#troubleshooting-faq" title="Permanent link">&para;</a></h1>
 <h2 id="the-banner-says-harness-not-configured">The banner says <code>harness: NOT configured</code><a class="headerlink" href="#the-banner-says-harness-not-configured" title="Permanent link">&para;</a></h2>
-<p>There's no <code>.claude/harness.json</code> in the project (or you're above the repo root). Run
-<code>~/harness/install.sh .</code> in the project. The plugin can be enabled but the enforcing gates stay
-inert until the config exists — that's by design.</p>
+<p>There's no <code>.claude/harness.json</code> and you're not inside a git repo (or you're above the repo root).
+Run <code>~/harness/install.sh .</code> in the project. Outside a git repo, the enforcing gates stay inert.
+Inside a git repo with no config, the banner instead says it's using the detected preset in memory.
+See <a href="../configuration/#no-config-the-implicit-profile">the implicit profile</a>.</p>
 <h2 id="the-banner-doesnt-appear-at-all">The banner doesn't appear at all<a class="headerlink" href="#the-banner-doesnt-appear-at-all" title="Permanent link">&para;</a></h2>
 <ul>
 <li>The plugin isn't picked up yet — <strong>restart Claude Code</strong> (or run <code>/config</code> once) after installing.</li>

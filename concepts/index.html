@@ -1077,8 +1077,9 @@ you which components you want, and can't ship a global ruleset. So:</p>
 <li><strong>The installer</strong> does the interactive selection, writes the config, enables the plugin, and
   (optionally) drops a generic global ruleset.</li>
 </ul>
-<p>A hook with no <code>harness.json</code> is <strong>inert</strong> — installing the plugin never intrudes until a project
-opts in via config.</p>
+<p>A git repo with no <code>harness.json</code> gets a minimal profile held in memory, from the detected stack's
+preset. The commit gate enforces, the verification gate only warns, and everything else stays off.
+Nothing is written to the repo. Outside a git repo, the hooks are inert.</p>
 <h2 id="config-driven-not-framework-coded">Config-driven, not framework-coded<a class="headerlink" href="#config-driven-not-framework-coded" title="Permanent link">&para;</a></h2>
 <p>The gates never hardcode <code>app/</code> or <code>test/system/</code>. They read <code>impl_dirs</code>, <code>ui_dirs</code>,
 <code>operator_test_dir</code>, and <code>test_command</code> from the stack profile. The <strong>same</strong> <code>pipeline_gate.sh</code>

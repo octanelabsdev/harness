@@ -732,6 +732,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#commit-gate-commit_gate-pretooluseposttooluse-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commit gate (commit_gate) — PreToolUse/PostToolUse hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pipeline-gate-pipeline_gate-pretooluse-hook" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1121,6 +1132,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#commit-gate-commit_gate-pretooluseposttooluse-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commit gate (commit_gate) — PreToolUse/PostToolUse hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pipeline-gate-pipeline_gate-pretooluse-hook" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1308,7 +1330,9 @@ else, including leading zeros, is dropped, and if none are left the defaults app
 <code>test_command</code></strong> and <strong>blocks</strong> (<code>exit 2</code>) if it fails — a red test is a fact, not a judgment, so it
 is safe to block on. It also <strong>advises</strong> (never blocks) when a UI/impl change (per <code>ui_dirs</code>) shipped
 without a change under <code>operator_test_dir</code> — i.e. no operator-journey test. It short-circuits on
-<code>stop_hook_active</code> so it can never loop. Inert unless <code>components.verification_gate</code> is <code>true</code>.</p>
+<code>stop_hook_active</code> so it can never loop. Inert unless <code>components.verification_gate</code> is <code>true</code>. A git
+repo with no <code>harness.json</code> runs it <strong>warn-only</strong> from the detected stack preset (see
+<a href="../configuration/#no-config-the-implicit-profile">configuration.md</a>).</p>
 <p>A <code>test_command</code> failure <strong>blocks by default</strong>. Rolling out gradually? <code>touch .claude/.verification-warn</code>
 to downgrade to warn-only (the failure is surfaced but doesn't block). A Stop hook's <code>exit 2</code> prevents
 the stop and continues so Claude addresses the gap.</p>
@@ -1344,6 +1368,38 @@ or not, makes it stale. Findings are checked against the same base-relative diff
 validate after the commit. An artifact without a full-sha <code>base</code> is checked the old way: it is fresh
 only while the reviewed changes are uncommitted. This replaces the old <code>.claude/.last-review</code> check, which
 compared a model-written marker to HEAD and couldn't tell a real review from a claimed one.</p>
+<h3 id="commit-gate-commit_gate-pretooluseposttooluse-hook">Commit gate (<code>commit_gate</code>) — PreToolUse/PostToolUse hook<a class="headerlink" href="#commit-gate-commit_gate-pretooluseposttooluse-hook" title="Permanent link">&para;</a></h3>
+<p><code>git commit</code>, <code>git push</code> and <code>gh pr create</code> need a green <code>test_command</code> run on the exact tree being
+shipped. A pass is recorded against a hash of the working tree (untracked files included, ignored
+files left out), so it covers that content only. Any edit afterwards needs a new run.</p>
+<p>A pass is recorded two ways:</p>
+<ul>
+<li><strong>The agent runs <code>test_command</code> as a command of its own and it exits 0.</strong> A leading <code>cd</code>,
+  <code>caffeinate</code>/<code>time</code>, <code>tools/run_tests.sh … --</code> and trailing redirects are fine (<code>bin/ci &gt; $TMPDIR/ci.log 2&gt;&amp;1</code>).
+  A pipe or <code>; echo "EXIT=$?"</code> hides the exit code, so those runs don't count. Background and
+  interrupted runs don't count either.</li>
+<li><strong>The gate runs it.</strong> With no pass for the tree, the gate runs <code>test_command</code> itself, through
+  <code>tools/run_tests.sh</code> with the same timeout and lock settings as the verification gate. It allows on
+  green and records the pass. On red it denies and shows the last 40 lines of output.</li>
+</ul>
+<p>An agent's plain <code>test_command</code> run (including a background run) is rewritten to go through
+<code>tools/run_tests.sh</code>, with the configured <code>test_timeout_sec</code> and <code>test_lock_wait_sec</code>. Every suite then
+takes the same repo-wide lock as the gates, so two runs never share a test database. The original
+command, including its <code>cd</code> and redirects, runs unchanged inside the runner. The rewrite uses
+PreToolUse <code>updatedInput</code>, so permission rules are checked against the rewritten command: an allow
+rule for plain <code>bin/ci</code> won't cover it. Commands that already call <code>run_tests.sh</code>, and compound
+commands such as <code>bin/ci; echo …</code>, aren't rewritten.</p>
+<p>Only commits and pushes that touch the implementation surface (<code>impl_dirs</code>) are gated. A commit counts
+when the working tree has implementation changes. A push or PR counts when HEAD differs from its
+upstream (or <code>origin/HEAD</code>, <code>origin/main</code>, <code>origin/master</code>) in <code>impl_dirs</code>. A push with uncommitted
+implementation changes checks HEAD's own tree and never runs the suite, because the working tree isn't
+what gets pushed.</p>
+<p>A message or note that only mentions <code>git commit</code> (in quotes or a heredoc) isn't gated, and neither is
+<code>--dry-run</code>. The gate checks the repo the command acts on: a leading <code>cd</code>, <code>git -C</code>, or the shell's
+current directory.</p>
+<p><strong>On</strong> whenever <code>verification_gate</code> is on; set <code>components.commit_gate</code> to <code>false</code> to turn it off.
+<code>.claude/.verification-warn</code> downgrades it to a warning that never runs the suite. Its PreToolUse
+timeout is 1800s, like the Stop hook's, so the gate has room to run the suite.</p>
 <h3 id="pipeline-gate-pipeline_gate-pretooluse-hook">Pipeline gate (<code>pipeline_gate</code>) — PreToolUse hook<a class="headerlink" href="#pipeline-gate-pipeline_gate-pretooluse-hook" title="Permanent link">&para;</a></h3>
 <p>Before an <code>Edit</code>/<code>Write</code> to the implementation surface (<code>impl_dirs</code>), it requires either:
 - a story at <code>.claude/current-story.yaml</code> that PASSES the DoR lint (<code>dor_lint</code> exit 0 — the gate runs it; the verdict is computed, not a self-written stamp), or

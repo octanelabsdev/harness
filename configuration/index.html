@@ -693,6 +693,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#no-config-the-implicit-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No config: the implicit profile
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#schema" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -949,6 +960,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#no-config-the-implicit-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No config: the implicit profile
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#schema" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1042,8 +1064,24 @@
 
 <h1 id="configuration-claudeharnessjson">Configuration: <code>.claude/harness.json</code><a class="headerlink" href="#configuration-claudeharnessjson" title="Permanent link">&para;</a></h1>
 <p>The harness is config-driven. One file per project — <code>.claude/harness.json</code> — declares which
-components are active and describes your stack. The hooks read it at runtime; with no file, the
-enforcing gates stay inert.</p>
+components are active and describes your stack. The hooks read it at runtime. With no file, a git
+repo gets the implicit profile described below.</p>
+<h2 id="no-config-the-implicit-profile">No config: the implicit profile<a class="headerlink" href="#no-config-the-implicit-profile" title="Permanent link">&para;</a></h2>
+<p>A git repo with no <code>.claude/harness.json</code> (for example with <code>HARNESS_NO_AUTOBOOTSTRAP=1</code>, which
+stops the harness writing one) isn't left unguarded. The hooks detect the stack, the same way
+auto-bootstrap does, and use that preset in memory:</p>
+<ul>
+<li><strong><code>commit_gate</code> enforces.</strong> A commit, push or PR that touches the preset's <code>impl_dirs</code> needs a
+  green run of the preset's <code>test_command</code> on that tree.</li>
+<li><strong><code>verification_gate</code> warns.</strong> At Stop it runs the suite and reports a failure, but doesn't block,
+  as if <code>.claude/.verification-warn</code> were present.</li>
+<li><strong>Everything else stays off</strong> (<code>pipeline_gate</code>, <code>review_gate</code>). The on-by-default hooks behave as
+  usual.</li>
+</ul>
+<p>Nothing is written to the repo. Pass records live in the git directory, not the working tree. The
+<code>generic</code> preset has no <code>test_command</code>, so a repo with no detected stack gets no gates. The
+SessionStart banner says when the implicit profile is in use. Outside a git repo, the hooks stay
+inert.</p>
 <h2 id="schema">Schema<a class="headerlink" href="#schema" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>{
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  "components": {
@@ -1051,26 +1089,27 @@ enforcing gates stay inert.</p>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    "skill_nudge":       true,   // SessionStart nudge to invoke skills (default on)
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    "context_warning":   true,   // UserPromptSubmit warning at 100K/150K/250K tokens (default on)
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    "verification_gate": true,   // Stop gate — runs test_command; blocks on failure
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied up to 3 times (default on)
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  },
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  "context_warning": { "steps": [100000, 150000, 250000] }, // optional: context sizes, in tokens, that warn
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  "stack": {
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    "name": "rails",                            // label, shown in the banner
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    "impl_dirs":  ["app", "lib", "db/migrate"], // the "implementation surface" the gates care about
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    "ui_dirs":    ["app/views", "app/controllers"], // subset whose change should ship an operator test
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    "test_dir":   "test",                       // where unit/integration tests live
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    "test_command": "auto",                     // how to run the suite ("auto" = detect, "" = unknown)
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    "test_timeout_sec": 600,                    // optional: kill a gate test run after this long
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    "test_lock_wait_sec": 600,                  // optional: how long to wait for another session's run
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    "agents_bundle": {                          // optional: default agent bundle for /harness:agents
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>      "repo": "octanelabsdev/rails-agents",     //   owner/name slug or git URL
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>      "glob": ["rails-*.md", "dhh-code-reviewer.md"] // which files in the bundle are agents
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    }
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>  }
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>}
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    "commit_gate":       true,   // PreToolUse — commit/push/PR needs a green test_command run on that tree (default: follows verification_gate)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    "pipeline_gate":     true,   // PreToolUse gate — DoR story required for feature edits
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    "guardrails_gate":   true,   // PreToolUse — first edit waits for the guardrails skill, denied up to 3 times (default on)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    "review_gate":       false   // Stop gate — require a verified blind-review artifact (opt-in, default off)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  },
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  "context_warning": { "steps": [100000, 150000, 250000] }, // optional: context sizes, in tokens, that warn
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  "stack": {
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    "name": "rails",                            // label, shown in the banner
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    "impl_dirs":  ["app", "lib", "db/migrate"], // the "implementation surface" the gates care about
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    "ui_dirs":    ["app/views", "app/controllers"], // subset whose change should ship an operator test
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    "test_dir":   "test",                       // where unit/integration tests live
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    "operator_test_dir": "test/system",         // where operator/e2e/journey tests live ("" = none)
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    "test_command": "auto",                     // how to run the suite ("auto" = detect, "" = unknown)
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    "test_timeout_sec": 600,                    // optional: kill a gate test run after this long
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    "test_lock_wait_sec": 600,                  // optional: how long to wait for another session's run
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    "agents_bundle": {                          // optional: default agent bundle for /harness:agents
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>      "repo": "octanelabsdev/rails-agents",     //   owner/name slug or git URL
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>      "glob": ["rails-*.md", "dhh-code-reviewer.md"] // which files in the bundle are agents
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    }
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>  }
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>}
 </code></pre></div>
 <h3 id="field-semantics">Field semantics<a class="headerlink" href="#field-semantics" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1100,7 +1139,10 @@ enforcing gates stay inert.</p>
   <strong>blocks</strong> on a <code>test_command</code> failure (opt down with <code>.claude/.verification-warn</code>). <code>review_gate</code>
   (also part of the verification-gate Stop hook, opt-in) additionally requires a <strong>verified blind-review
   artifact</strong> for the current diff — produced by the <code>blind-review</code> skill, checked by
-  <code>tools/review_verify.sh</code>; same <code>.claude/.verification-warn</code> downgrade. (The <code>harness_bootstrap</code> hook
+  <code>tools/review_verify.sh</code>; same <code>.claude/.verification-warn</code> downgrade. <code>commit_gate</code> follows
+  <code>verification_gate</code> unless set explicitly. It gates <code>git commit</code>, <code>git push</code> and <code>gh pr create</code> on a
+  green <code>test_command</code> run for the tree being shipped, and runs the suite itself when there isn't one.
+  It uses the same <code>.claude/.verification-warn</code> downgrade. (The <code>harness_bootstrap</code> hook
   has no toggle — it only acts when there's no config yet; see <a href="../components/">components.md</a>.)</li>
 <li><strong><code>context_warning.steps</code></strong> (optional) — the context sizes, in tokens, at which the context warning
   fires once each. <code>HARNESS_CONTEXT_STEPS</code> (a comma list) in the environment overrides it, which suits
