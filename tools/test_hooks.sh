@@ -767,6 +767,98 @@ OUT="$(run_gg s6 Edit '{"file_path":"app/x.rb"}')"
 OUT="$(run_gg s6 Edit '{"file_path":"app/x.rb"}' sub2)"
 denied "$OUT" && ok "the main agent loading guardrails doesn't open a subagent's gate" || no "subagent inherited the load: $OUT"
 T="$R/transcript.jsonl"
+
+GG_SKILL='{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"harness:guardrails"}}]}}'
+GG_BOUNDARY='{"type":"system","subtype":"compact_boundary","compactMetadata":{"trigger":"auto"}}'
+printf '%s\n%s\n' "$GG_SKILL" "$GG_BOUNDARY" > "$T"
+OUT="$(run_gg c1 Edit '{"file_path":"app/x.rb"}')"
+denied "$OUT" && ok "a guardrails load from before the last compaction doesn't count" || no "pre-compaction load opened the gate: $OUT"
+printf '%s\n%s\n%s\n' "$GG_BOUNDARY" "$GG_SKILL" "$GG_BOUNDARY" > "$T"
+OUT="$(run_gg c2 Edit '{"file_path":"app/x.rb"}')"
+denied "$OUT" && ok "only the last compaction boundary matters" || no "load between two compactions opened the gate: $OUT"
+printf '%s\n%s\n' "$GG_BOUNDARY" "$GG_SKILL" > "$T"
+OUT="$(run_gg c3 Edit '{"file_path":"app/x.rb"}')"
+[ -z "$OUT" ] && ok "loading guardrails again after compaction opens the gate" || no "post-compaction load still denied: $OUT"
+printf '%s\n%s\n' "$GG_BOUNDARY" '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/plugin/skills/guardrails/references/CODE.md"}}]}}' > "$T"
+OUT="$(run_gg c6 Edit '{"file_path":"app/x.rb"}')"
+[ -z "$OUT" ] && ok "reading CODE.md with the Read tool counts as loading guardrails" || no "CODE.md Read didn't open the gate: $OUT"
+printf '%s\n' '{"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "cat \"$HOME/Vault/guardrails/CODE.md\""}}]}}' > "$T"
+OUT="$(run_gg c7 Edit '{"file_path":"app/x.rb"}')"
+[ -z "$OUT" ] && ok "reading CODE.md with cat in Bash counts too" || no "CODE.md cat didn't open the gate: $OUT"
+printf '%s\n' '{"type":"user","message":{"content":[{"type":"text","text":"routes to ~/Vault/guardrails/CODE.md; \"skill\":\"harness:guardrails\""}]}}' > "$T"
+OUT="$(run_gg c8 Edit '{"file_path":"app/x.rb"}')"
+denied "$OUT" && ok "instructions that only mention CODE.md or the skill don't count as loading it" || no "a mention opened the gate: $OUT"
+: > "$T"
+
+OUT="$(run_gg o1 Edit '{"file_path":"/Users/you/Vault/notes/decision.md"}')"
+[ -z "$OUT" ] && ok "an edit to a file outside the repo isn't gated" || no "out-of-repo edit denied: $OUT"
+OUT="$(run_gg o2 Write "$(jq -nc --arg p "$R/app/x.rb" '{file_path:$p}')")"
+denied "$OUT" && ok "an absolute path inside the repo is still gated" || no "in-repo absolute path let through: $OUT"
+OUT="$(run_gg o3 Write "$(jq -nc --arg p "${R}-sibling/app/x.rb" '{file_path:$p}')")"
+[ -z "$OUT" ] && ok "a sibling directory sharing the repo's name prefix isn't the repo" || no "prefix sibling treated as repo: $OUT"
+
+gg_bash() { # gg_bash <session> <command> -> hook stdout
+  run_gg "$1" Bash "$(jq -nc --arg c "$(printf '%b' "$2")" '{command:$c}')"
+}
+n=0
+for cmd in \
+  'cat >> "$HOME/Vault/Notes/Out-of-Scope Backlog.md" <<'"'"'EOF'"'"'\n- found: x > y; rm -rf app\nEOF' \
+  'B="$HOME/Vault/Notes/Backlog.md"; tail -5 "$B"; cat >> "$B" <<'"'"'EOF'"'"'\nnote\nEOF' \
+  'cd "$HOME/Vault/RCA" && sed -n 1,5p rca.md && cat >> rca.md <<EOF\nnote\nEOF' \
+  'bin/ci > $TMPDIR/ci.txt 2>&1; echo "EXIT=$?"; grep -E "a|b" $TMPDIR/ci.txt' \
+  "cd $R; bin/rails test > /tmp/run.log 2>&1" \
+  'echo note | tee -a ~/Vault/log.md' \
+  'echo x > /dev/stderr'; do
+  n=$((n+1)); OUT="$(gg_bash "v$n" "$cmd")"
+  [ -z "$OUT" ] && ok "a write outside the repo isn't gated: $(head -1 <<< "$cmd" | cut -c1-60)" || no "out-of-repo write denied: $cmd"
+done
+for cmd in \
+  'cp app/x.rb $TMPDIR/x.rb && sed -i "" s/a/b/ app/x.rb' \
+  "cd $R; echo x > app/x.rb" \
+  'echo x > $UNSET_VAR/x.rb' \
+  "echo x > '\$HOME/x.rb'" \
+  'python3 - <<EOF\nopen("app/x.rb","w").write("x")\nEOF' \
+  'cat <<EOF | bash\necho x > app/x.rb\nEOF' \
+  'echo x | tee -a $TMPDIR/log app/x.rb' \
+  'echo x > >(cat > app/x.rb)' \
+  'echo x > $HOME/../../repo/app/x.rb' \
+  "echo x > $R/app/x.rb; echo y > \$TMPDIR/log"; do
+  n=$((n+1)); OUT="$(gg_bash "v$n" "$cmd")"
+  denied "$OUT" && ok "a write it can't place outside the repo stays gated: $(head -1 <<< "$cmd" | cut -c1-60)" || no "write let through: $cmd"
+done
+OUT="$(gg_bash v99 'echo x > app/x.rb')"
+grep -q "Write or Edit tool" <<< "$OUT" && ok "a Bash deny says how to write a note outside the repo" || no "Bash deny lacks the out-of-repo hint: $OUT"
+for _ in 1 2 3; do gg_bash b1 'echo x > app/x.rb' > /dev/null; done
+OUT="$(run_gg b1 Edit '{"file_path":"app/x.rb"}')"
+denied "$OUT" && grep -q "1 of 3" <<< "$OUT" && ok "Bash denies don't use up the file-edit denies" || no "Bash denies spent the Edit budget: $OUT"
+
+git -C "$R" commit -q --allow-empty -m init
+WT="${R}-wt"; git -C "$R" worktree add -q "$WT" 2>/dev/null
+OUT="$(run_gg w1 Edit "$(jq -nc --arg p "$WT/app/x.rb" '{file_path:$p}')")"
+denied "$OUT" && ok "an edit in a sibling worktree of the repo is still gated" || no "sibling worktree edit let through: $OUT"
+OUT="$(gg_bash w2 "cd $WT; echo x > .claude/.small-fix")"
+denied "$OUT" && ok "a Bash write into a sibling worktree is still gated" || no "sibling worktree Bash write let through: $OUT"
+git -C "$R" worktree remove --force "$WT" 2>/dev/null; rm -rf "$WT"
+
+run_compact() { # run_compact <session> -> the SessionStart(compact) event
+  TMPDIR="$GG_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/guardrails_gate.sh" <<< \
+    "$(jq -nc --arg s "$1" --arg p "$T" '{session_id:$s,hook_event_name:"SessionStart",source:"compact",transcript_path:$p}')"
+}
+run_gg c4 Skill '{"skill":"harness:guardrails"}' > /dev/null
+run_gg c4 Skill '{"skill":"harness:guardrails"}' sub3 > /dev/null
+OUT="$(run_compact c4)"; rc=$?
+[ "$rc" = 0 ] && [ -z "$OUT" ] && ok "the compaction reset exits 0 silently" || no "compaction reset: rc=$rc out=$OUT"
+OUT="$(run_gg c4 Edit '{"file_path":"app/x.rb"}')"
+denied "$OUT" && grep -q "1 of 3" <<< "$OUT" && ok "after compaction, the next edit is denied until guardrails loads again" || no "edit let through after compaction: $OUT"
+OUT="$(run_gg c4 Edit '{"file_path":"app/x.rb"}' sub3)"
+[ -z "$OUT" ] && ok "compacting the main context leaves a subagent's load alone" || no "subagent lost its load on main compaction: $OUT"
+for _ in 1 2 3; do run_gg c5 Edit '{"file_path":"app/x.rb"}' > /dev/null; done
+run_compact c5 > /dev/null
+OUT="$(run_gg c5 Edit '{"file_path":"app/x.rb"}')"
+denied "$OUT" && grep -q "1 of 3" <<< "$OUT" && ok "compaction gives a fresh count of three denies" || no "deny count not reset by compaction: $OUT"
+gg_compact="$(jq -r '[.hooks.SessionStart[] | select(.matcher == "compact") | .hooks[].command | select(test("guardrails_gate"))] | length' "$HOOKS/hooks.json")"
+[ "$gg_compact" = 1 ] && ok "hooks.json runs the gate on SessionStart(compact)" || no "no SessionStart(compact) entry for the gate"
+
 gg_matcher="$(jq -r '.hooks.PreToolUse[] | select(.hooks[].command|test("guardrails_gate")) | .matcher' "$HOOKS/hooks.json")"
 [[ "|$gg_matcher|" == *"|Skill|"* ]] && ok "hooks.json routes Skill calls to the gate" || no "gate matcher lacks Skill: $gg_matcher"
 
