@@ -8,6 +8,7 @@
 # on success), or when this gate runs the suite itself: with no pass for the tree being shipped, the
 # gate runs test_command (serialized by run_tests.sh) and denies on red.
 #
+# With components.review_gate on, the blind review must also cover the tree (tools/review_verify.sh).
 # On whenever verification_gate is; components.commit_gate false turns it off. .claude/.verification-warn
 # downgrades it to a warning that never runs the suite.
 set -uo pipefail
@@ -46,21 +47,10 @@ test_cmd="$(harness_resolve_test_command "$repo" "$raw_cmd" "$(hcfg '.stack.name
 [ -n "$test_cmd" ] || exit 0
 
 common=$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
-passes="$common/harness-test-passes"
 pending="$common/harness-test-pending"
-
-# Hash of the working tree as it stands, untracked files included and ignored ones left out. A
-# throwaway index keeps the real one untouched.
-worktree_tree() {
-  local idx rc=0 tree
-  idx=$(mktemp "${TMPDIR:-/tmp}/harness-index.XXXXXX") || return 1
-  cp "$(git -C "$repo" rev-parse --path-format=absolute --git-path index)" "$idx" 2>/dev/null || : > "$idx"
-  tree=$(GIT_INDEX_FILE="$idx" git -C "$repo" add -A 2>/dev/null && GIT_INDEX_FILE="$idx" git -C "$repo" write-tree 2>/dev/null) || rc=1
-  rm -f "$idx"
-  [ "$rc" = 0 ] && printf '%s' "$tree"
-}
-has_pass() { [ -f "$passes" ] && grep -qxF "$1"$'\t'"$test_cmd" "$passes"; }
-record_pass() { printf '%s\t%s\n' "$1" "$test_cmd" >> "$passes" 2>/dev/null; }
+worktree_tree() { harness_worktree_tree "$repo"; }
+has_pass() { harness_has_pass "$repo" "$1" "$test_cmd"; }
+record_pass() { harness_record_pass "$repo" "$1" "$test_cmd"; }
 
 # test_command as a command of its own: a leading cd, caffeinate/time or run_tests.sh, and trailing
 # redirects are fine; a pipe or `; echo` would hide its exit code.
@@ -144,17 +134,26 @@ else
   fi
   # Uncommitted implementation changes mean the working tree isn't what gets pushed, so only a pass
   # recorded for HEAD's own tree counts.
-  if dirty_impl; then key=$(git -C "$repo" rev-parse 'HEAD^{tree}' 2>/dev/null); can_run=0; fi
+  if dirty_impl; then key=$(harness_head_tree "$repo"); can_run=0; fi
 fi
 [ -n "$key" ] || key=$(worktree_tree) || exit 0
-has_pass "$key" && exit 0
 
 deny() { jq -n --arg r "$1" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'; exit 0; }
 advise() { jq -n --arg c "$1" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$c}}'; exit 0; }
+warn=""; [ -f "$repo/.claude/.verification-warn" ] && warn=1
 
-if [ -f "$repo/.claude/.verification-warn" ]; then
-  advise "COMMIT GATE (warn): no green \`$test_cmd\` run is recorded for this tree. [warn only — remove .claude/.verification-warn to enforce]"
+# Checked before the suite: it's cheap, and a tested tree with a stale review still can't ship.
+if [ "$(hcfg '.components."review_gate"' 'false')" = true ] &&
+   ! rv_out="$(cd "$repo" && bash "$HERE/../tools/review_verify.sh" 2>&1)"; then
+  msg="COMMIT GATE — the blind review doesn't cover this tree (components.review_gate):
+$rv_out
+Run the blind-review skill on the current diff, then retry."
+  [ -n "$warn" ] && advise "$msg [warn only — remove .claude/.verification-warn to enforce]"
+  deny "$msg"
 fi
+
+has_pass "$key" && exit 0
+[ -n "$warn" ] && advise "COMMIT GATE (warn): no green \`$test_cmd\` run is recorded for this tree. [warn only — remove .claude/.verification-warn to enforce]"
 [ "$can_run" = 1 ] || deny "COMMIT GATE: HEAD has no green \`$test_cmd\` run recorded, and the working tree has uncommitted implementation changes, so the gate can't test what you are pushing. Commit or stash them, then retry: the gate runs the suite on a clean tree."
 
 hook_timeout_sec="$(jq -r '[.hooks.PreToolUse[].hooks[] | select(.command | test("commit_gate")) | .timeout][0] // 600' "$HERE/hooks.json" 2>/dev/null || echo 600)"

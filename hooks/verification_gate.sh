@@ -77,6 +77,8 @@ if [ -n "$test_cmd" ] || [ "$raw_cmd" = auto ]; then
       ;;
   esac
   trc=0; test_out=""
+  # Hashed before the run, so files the suite writes don't change the key the commit gate looks up.
+  tree="$(harness_worktree_tree "$repo" || true)"
   if [ -z "$test_cmd" ]; then
     trc=6   # "auto" with no resolver for this stack must not skip the tests silently
   else
@@ -87,6 +89,7 @@ if [ -n "$test_cmd" ] || [ "$raw_cmd" = auto ]; then
     # A green run that executed no tests is a misconfigured command, not a pass. Judge the whole log:
     # test_out is only its last 200 lines, which can drop a real summary and keep an empty one.
     [ "$trc" = 0 ] && harness_ran_zero_tests "${full_out:-$test_out}" && trc=5
+    [ "$trc" = 0 ] && harness_record_pass "$repo" "$tree" "$test_cmd"
   fi
   if [ "$trc" != 0 ]; then
     case "$trc" in

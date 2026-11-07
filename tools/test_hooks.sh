@@ -984,6 +984,40 @@ cg_post="$(jq -r '[.hooks.PostToolUse[] | select(.matcher == "Bash") | .hooks[].
 [ "$cg_pre" = 1800 ] && [ "$cg_post" = 1 ] && ok "hooks.json routes Bash Pre/PostToolUse to the gate, with room to run the suite" || no "commit_gate routing: pre timeout=$cg_pre post=$cg_post"
 rm -rf "$R" "$CG_TMP"
 
+# ---- commit_gate + verification_gate: a Stop pass carries to the commit; the review must cover the tree ----
+echo "commit_gate handoff and review:"
+HO_TMP="$(mktemp -d "${TMPDIR:-/tmp}/harness-hotest.XXXXXX")"
+R="$(mkrepo "$(jq -cn --arg c "echo run >> $HO_TMP/runs; echo '2 runs, 0 failures'" '{components:{verification_gate:true},stack:{impl_dirs:["lib"],test_command:$c}}')")"
+git -C "$R" add -A && git -C "$R" commit -qm base
+ho_cg() { # ho_cg <command> -> commit gate stdout
+  TMPDIR="$HO_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/commit_gate.sh" <<< \
+    "$(jq -nc --arg c "$1" --arg d "$R" '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:$c},cwd:$d}')"
+}
+ho_runs() { [ -f "$HO_TMP/runs" ] && wc -l < "$HO_TMP/runs" | tr -d ' ' || echo 0; }
+
+printf 'x = 1\n' > "$R/lib/foo.rb"
+run_stop "$R" false
+OUT="$(ho_cg 'git commit -am "foo"')"
+[ "$RC" = 0 ] && [ -z "$OUT" ] && [ "$(ho_runs)" = 1 ] && ok "a green Stop run is recorded, so the commit right after doesn't rerun the suite" || no "Stop pass not carried to the commit: rc=$RC runs=$(ho_runs) out=$OUT"
+run_stop "$R" false
+[ "$(ho_runs)" = 2 ] && ok "the Stop gate itself still runs the suite every time" || no "Stop gate reused a pass: runs=$(ho_runs)"
+
+jq '.components.review_gate = true' "$R/.claude/harness.json" > "$HO_TMP/h.json" && cp "$HO_TMP/h.json" "$R/.claude/harness.json"
+mkdir -p "$R/.claude/.review"; before=$(ho_runs)
+OUT="$(ho_cg 'git commit -am "foo"')"
+denied "$OUT" && grep -q "blind review" <<< "$OUT" && [ "$(ho_runs)" = "$before" ] && ok "with review_gate on and no review, the commit is denied before any suite run" || no "missing review not denied: $OUT"
+SHA="$(cd "$R" && bash "$VER" --emit-sha)"
+printf '{"diff_sha":"%s","verdict":"pass","findings":[]}' "$SHA" > "$R/.claude/.review/current.json"
+OUT="$(ho_cg 'git commit -am "foo"')"
+[ -z "$OUT" ] && ok "a fresh passing review plus a recorded green run lets the commit through" || no "reviewed and tested commit denied: $OUT"
+printf 'x = 2\n' > "$R/lib/foo.rb"
+OUT="$(ho_cg 'git commit -am "foo"')"
+denied "$OUT" && grep -q "blind review" <<< "$OUT" && ok "an edit after the review makes it stale and the commit is denied" || no "stale review not denied: $OUT"
+touch "$R/.claude/.verification-warn"
+OUT="$(ho_cg 'git commit -am "foo"')"
+! denied "$OUT" && grep -q "warn only" <<< "$OUT" && ok ".verification-warn makes a missing review advisory too" || no "warn mode review: $OUT"
+rm -rf "$R" "$HO_TMP"
+
 # ---- implicit profile: a git repo with no harness.json ----
 echo "implicit profile:"
 IP_TMP="$(mktemp -d "${TMPDIR:-/tmp}/harness-iptest.XXXXXX")"
