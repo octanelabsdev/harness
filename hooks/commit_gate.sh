@@ -53,9 +53,16 @@ has_pass() { harness_has_pass "$repo" "$1" "$test_cmd"; }
 record_pass() { harness_record_pass "$repo" "$1" "$test_cmd"; }
 
 # test_command as a command of its own: a leading cd, caffeinate/time or run_tests.sh, and trailing
-# redirects are fine; a pipe or `; echo` would hide its exit code.
+# redirects are fine; a pipe or `; echo` would hide its exit code. The gate's own rewrite (see
+# serialize_run) counts too: auto mode refuses a call whose input a hook changed, and the agent then
+# sends the rewritten command itself.
 plain_test_run() {
-  local c
+  local c re="^\(cd '[^']*' && bash '[^']*/tools/run_tests\.sh' --timeout [0-9]+ --wait [0-9]+ -- '(.*)'\)$"
+  if [[ "$1" =~ $re ]]; then
+    c="${BASH_REMATCH[1]}"
+    plain_test_run "${c//"'\\''"/"'"}"
+    return
+  fi
   c=$(printf '%s' "$1" | sed -E \
     -e 's/^[[:space:]]*cd[[:space:]]+("[^"]*"|[^[:space:];&|]+)[[:space:]]*(&&|;)[[:space:]]*//' \
     -e 's/^(caffeinate([[:space:]]+-[a-zA-Z]+)*|time)[[:space:]]+//' \

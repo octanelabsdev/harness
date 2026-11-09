@@ -956,6 +956,17 @@ new_cmd="$(jq -r '.hookSpecificOutput.updatedInput.command // empty' <<< "$OUT")
 : > "$CG_TMP/red"
 (cd "$CG_TMP" && bash -c "$new_cmd") && no "rewritten command exited 0 on red" || ok "the rewritten command exits non-zero on red, so it can't be recorded as a pass"
 rm -f "$CG_TMP/red"
+# Auto mode refuses a call a hook rewrote; the agent then sends the rewritten command itself.
+printf 'v7\n' > "$R/lib/a.rb"; before=$(runs)
+OUT="$(run_cg PreToolUse "$new_cmd" r1)"; run_cg PostToolUse "$new_cmd" r1 > /dev/null
+[ -z "$OUT" ] || no "resent rewrite rewritten again: $OUT"
+OUT="$(run_cg PreToolUse 'git commit -am "v7"')"
+[ -z "$OUT" ] && [ "$(runs)" = "$before" ] && ok "a resent rewritten run counts for its tree, so the commit doesn't rerun the suite" || no "resent rewrite not recorded: runs=$(runs) out=$OUT"
+printf 'v8\n' > "$R/lib/a.rb"; : > "$CG_TMP/red"; extra="${new_cmd%\')}; true')"
+run_cg PreToolUse "$extra" r3 > /dev/null; run_cg PostToolUse "$extra" r3 > /dev/null
+OUT="$(run_cg PreToolUse 'git commit -am "v8"')"
+denied "$OUT" && ok "a rewritten-looking run with an extra step inside doesn't count as a pass" || no "compound rewrite counted: $OUT"
+rm -f "$CG_TMP/red"; git -C "$R" checkout -q -- lib/a.rb
 jq '.stack.test_lock_wait_sec = 1' "$R/.claude/harness.json" > "$CG_TMP/h.json" && cp "$CG_TMP/h.json" "$R/.claude/harness.json"
 held_cmd="$(jq -r '.hookSpecificOutput.updatedInput.command' <<< "$(run_cg PreToolUse 'bash t.sh' s2)")"
 lockdir="$(git -C "$R" rev-parse --path-format=absolute --git-common-dir)/harness-test.lock"
