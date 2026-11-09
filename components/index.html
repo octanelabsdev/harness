@@ -1392,6 +1392,10 @@ command, including its <code>cd</code> and redirects, runs unchanged inside the 
 PreToolUse <code>updatedInput</code>, so permission rules are checked against the rewritten command: an allow
 rule for plain <code>bin/ci</code> won't cover it. Commands that already call <code>run_tests.sh</code>, and compound
 commands such as <code>bin/ci; echo …</code>, aren't rewritten.</p>
+<p>In auto mode, Claude Code refuses to rule on a call whose input a hook changed and asks the agent to
+send it again. The agent then sends the rewritten command itself. That costs one extra round trip,
+and the gate counts the resent run like the original: green on this tree means the commit doesn't
+rerun the suite.</p>
 <p>Only commits and pushes that touch the implementation surface (<code>impl_dirs</code>) are gated. A commit counts
 when the working tree has implementation changes. A push or PR counts when HEAD differs from its
 upstream (or <code>origin/HEAD</code>, <code>origin/main</code>, <code>origin/master</code>) in <code>impl_dirs</code>. A push with uncommitted
