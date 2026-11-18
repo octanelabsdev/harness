@@ -10,7 +10,7 @@ Echo protocol: for each item write one line — `S<n>: PASS — <evidence>` | `S
 - S3. No speculative generality: no parameters, options, config keys, flags, hooks, or extension points for cases nobody named; no handling for states that cannot occur here. (Real failure paths on I/O still follow CODE C13 — that is correctness, not scope.)
 - S4. New dependency, gem/package, service, table, or column: name the existing code, stdlib, or framework feature that does the job, and why it doesn't. Can't name why? Use the existing one.
 - S5. No unrequested artifacts: no new READMEs, docs, comment headers, example files, generators, or test helpers for a single test. Match the surrounding code's density.
-- S6. Delegating? Put the S1 sentence and a "do not add" list in the sub-agent's prompt, and review the returned diff against S1–S5 before accepting it. Sub-agents over-build by default.
+- S6. Delegating? The sub-agent knows only its brief, so write it as: `Mission:` the S1 sentence · `Files owned:` what it may change (everything else is read-only) · `Context:` the files, commands, and facts already established · `Tests:` the command that proves it · `Handoff:` the evidence to return (diff, quoted test output, verified vs unverified) · `Escalation:` when to stop and report instead of guessing · `Do not add:` the list. Review the returned diff against S1–S5 before accepting it. Sub-agents over-build by default.
 - S7. Before reporting, run `git diff --stat` and paste it. For every file and every new symbol, name the line of the ask it serves. Anything that serves none is reverted or split into its own proposal. Problems you noticed but didn't need to fix go to VERIFY V13, not into the diff.
 
 --- reference ---

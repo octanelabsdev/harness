@@ -24,6 +24,7 @@ After each edit:
 - C13. New code doing I/O, network, parsing external input, or multi-step mutation: implement the failure path explicitly, then report `HANDLED FAILURES: <list>` and `NOT HANDLED (by choice): <list + reason>`. An empty failure list on I/O code is a defect.
 - C14. Before any Edit that deletes "dead" code: paste all three greps first — (1) bare name repo-wide including non-code files (views, YAML, routes), (2) the name inside quotes (`'x'` and `"x"`) for dynamic dispatch/`send`/reflection, (3) barrel/`__all__`/route/registration/DI entries. Any ambiguous hit -> deprecate instead of delete.
 - C15. Replacing more than half of a function or file? Follow "You are rewriting instead of editing" below the divider first.
+- C16. Comment audit (every edit that adds or keeps a comment): delete each comment in your diff unless it states a non-obvious WHY the code cannot express. Restating what the code does, narrating it line by line, section headers, and explaining standard language/framework behavior all fail. A kept comment is one line. Default to zero comments; let names carry the meaning. Report `COMMENTS: <n in diff, n kept — one reason each>` or `COMMENTS: none`.
 
 ## REFERENCE SWEEP (named procedure — invoked by C12 and Hardening Layer iron rule 2)
 - RS1. Grep the affected symbol's name repo-wide with NO file-type filter (code, configs, YAML, ERB/Blade templates, routes, docs, fixtures, factories) — the OLD name if renamed, otherwise the unchanged name of the thing whose contract changed.

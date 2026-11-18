@@ -31,6 +31,11 @@ criteria. Where the report is silent, it asks instead of guessing:
 correctly. The card passes a deterministic lint and is recorded at `.claude/current-story.yaml`, which
 is what unlocks the pipeline gate.
 
+You can give the card a size: `budget: S`, `M` or `L`. When the build session's context reaches the
+first, second or third warning step (100K, 150K or 250K tokens by default), Claude stops at the next
+safe point and reports what's done and what's left, instead of carrying on. Without a budget the
+warnings are information only.
+
 ### 3. Build
 
 > **You:** Build it.

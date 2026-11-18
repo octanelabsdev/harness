@@ -597,6 +597,9 @@ for f in "$HERE/../skills/guardrails/references/"*.md; do
   elif grep -qF "${TRIGGER[$p]}" <<< "$NUDGE"; then ok "nudge mentions the $p trigger"
   else no "nudge lacks the $p trigger ('${TRIGGER[$p]}')"; fi
 done
+for s in operator-tests rca voice; do
+  grep -q "• $s " <<< "$NUDGE" && ok "nudge names the $s skill" || no "nudge lacks the $s skill"
+done
 
 # ---- session_start_banner (SessionStart) ----
 echo "session_start_banner:"
@@ -708,6 +711,21 @@ CW_STEPS=""
 printf '{"components":{"context_warning":false}}' > "$R/.claude/harness.json"
 [ -z "$(run_cw fresh)" ] && ok "components.context_warning:false silences it" || no "toggle off still warned"
 printf '{"components":{}}' > "$R/.claude/harness.json"
+
+# A story budget turns the warning at its step into a stop-and-report.
+fresh budget; usage 104000
+printf 'id: B1\nbudget: S\n' > "$R/.claude/current-story.yaml"
+OUT="$(run_cw b1)"
+grep -q "reaches the budget (S)" <<< "$OUT" && grep -q "Stop at the next safe point" <<< "$OUT" \
+  && ok "budget S: the first step tells the model to stop and report" || no "budget S did not stop at 100K: $OUT"
+printf 'id: B1\nbudget: "M"\n' > "$R/.claude/current-story.yaml"
+OUT="$(run_cw b2)"
+grep -q "not an instruction to stop" <<< "$OUT" && ok "budget M: the first step is still only information" || no "budget M stopped at 100K: $OUT"
+usage 155000
+grep -q "reaches the budget (M)" <<< "$(run_cw b2)" && ok "budget M: the second step stops" || no "budget M did not stop at 150K"
+printf 'id: B1\nbudget: XL\n' > "$R/.claude/current-story.yaml"
+grep -q "not an instruction to stop" <<< "$(run_cw b3)" && ok "an unknown budget value is ignored" || no "unknown budget changed the warning"
+rm -f "$R/.claude/current-story.yaml"
 
 OUT="$(TMPDIR="$CW_TMP" CLAUDE_PROJECT_DIR="$R" env -u HARNESS_CONTEXT_STEPS bash "$HOOKS/context_warning.sh" <<< '{"session_id":"x","transcript_path":"/nonexistent"}')"; rc=$?
 [ "$rc" = 0 ] && [ -z "$OUT" ] && ok "a missing transcript exits 0 silently" || no "missing transcript: rc=$rc out=$OUT"
