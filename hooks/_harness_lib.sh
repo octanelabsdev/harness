@@ -111,7 +111,8 @@ harness_worktree_tree() { # harness_worktree_tree <repo>
   local idx rc=0 tree
   idx="$(mktemp "${TMPDIR:-/tmp}/harness-index.XXXXXX")" || return 1
   # No real index yet (nothing ever staged): an empty file isn't a valid index, so let git start one.
-  cp "$(git -C "$1" rev-parse --path-format=absolute --git-path index)" "$idx" 2>/dev/null || rm -f "$idx"
+  # -p keeps the index mtime: a fresh one makes git trust stale stat data for a same-size rewrite.
+  cp -p "$(git -C "$1" rev-parse --path-format=absolute --git-path index)" "$idx" 2>/dev/null || rm -f "$idx"
   tree="$(GIT_INDEX_FILE="$idx" git -C "$1" add -A 2>/dev/null &&
           GIT_INDEX_FILE="$idx" git -C "$1" rm -r -q --cached --ignore-unmatch -- .claude >/dev/null 2>&1 &&
           GIT_INDEX_FILE="$idx" git -C "$1" write-tree 2>/dev/null)" || rc=1

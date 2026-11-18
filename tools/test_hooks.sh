@@ -896,6 +896,12 @@ echo "3 runs, 3 assertions, 0 failures"
 EOF
 printf 'v1\n' > "$R/lib/a.rb"
 git -C "$R" add -A && git -C "$R" commit -qm base
+# Same size, same stat as the index entry: only the index's own mtime tells git to re-read the file.
+touch -t 202001010000 "$R/lib/a.rb"; git -C "$R" add lib/a.rb; touch -t 202001010000 "$R/.git/index"
+printf 'v9\n' > "$R/lib/a.rb"; touch -t 202001010000 "$R/lib/a.rb"
+git -C "$R" ls-tree "$(. "$HOOKS/_harness_lib.sh"; harness_worktree_tree "$R")" lib/a.rb | grep -q "$(git -C "$R" hash-object lib/a.rb)" &&
+  ok "the tree hash sees a same-size rewrite that git's stat cache would miss" || no "tree hash missed a same-size rewrite (stale stat cache)"
+printf 'v1\n' > "$R/lib/a.rb"; git -C "$R" add lib/a.rb
 run_cg() { # run_cg <event> <command> [tool_use_id] [interrupted] -> hook stdout
   TMPDIR="$CG_TMP" CLAUDE_PROJECT_DIR="$R" bash "$HOOKS/commit_gate.sh" <<< \
     "$(jq -nc --arg e "$1" --arg c "$2" --arg id "${3:-}" --argjson i "${4:-false}" --arg d "$R" \
