@@ -32,6 +32,11 @@ not wait to be asked and do not require a /command:
   • product-manager → when deciding what to work on next, triaging a backlog/board, or routing
                       ready work to an engineer
   • story-writer    → when creating or refining a work item / ticket / story before implementation
+  • operator-tests  → before writing, planning or delegating tests for a user- or operator-facing
+                      change, and before calling such a feature done
+  • rca             → when a feature or fix is finished, after a correction from the user, and after
+                      fixing a bug
+  • voice           → before drafting a message the user will send under their own name
 EOF
 
 # Model-only directive: no systemMessage. Stdout must be this one JSON object or it isn't parsed.

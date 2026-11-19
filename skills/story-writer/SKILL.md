@@ -42,7 +42,10 @@ into a `rejected_solutioning[]` list for traceability — not into the card body
 
 ## The contract + the gate
 Fill the input contract at `${CLAUDE_PLUGIN_ROOT}/tools/story-input.schema.json` — required:
-`id, title, source, operator, goal, business_rules[], acceptance_criteria[], out_of_scope[]`. Each
+`id, title, source, operator, goal, business_rules[], acceptance_criteria[], out_of_scope[]`. Set the
+optional `budget: S | M | L` when the human gives one or the work's size is plain: the build session then
+stops and reports at the first, second or third context-warning step (100K/150K/250K tokens by
+default). A story that looks bigger than L should be split, not budgeted. Each
 business rule has an `id` + a concrete `predicate`; each acceptance criterion has `given/when/then`,
 the rule ids it `covers`, and an `outcome_type`.
 

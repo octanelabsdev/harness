@@ -13,7 +13,8 @@
 # .claude/harness.json, then 100000,150000,250000. Invalid entries are dropped; none left means default.
 #
 # Steps re-arm when context drops back below them (after /compact). /clear starts a new session id,
-# so it starts fresh. Informational, so it defaults ON — set components.context_warning to false in
+# so it starts fresh. A `budget: S|M|L` line in .claude/current-story.yaml turns the first, second or
+# third step into a stop-and-report for that story. Informational, so it defaults ON — set components.context_warning to false in
 # .claude/harness.json to silence it.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; . "$HERE/_harness_lib.sh"
@@ -60,6 +61,15 @@ printf '%s' "$level" > "$state"
 size="$((tokens / 1000))K tokens"
 user="Context is at ${size}. Every turn re-reads all of it, so a clean break at a natural stopping point (/session-end, /clear, /session-start) keeps turns cheaper."
 model="HARNESS CONTEXT: this session's context is about ${size} (crossed $((level / 1000))K). This is information, not an instruction to stop: carry on with the current task. If a natural stopping point comes up, you may mention to the user that /session-end, then /clear and /session-start, would start a fresh, cheaper context."
+
+# A story card can opt in to a stop: budget S, M or L is the first, second or third step.
+budget="$(sed -n 's/^budget:[[:space:]]*"\{0,1\}\([SML]\)"\{0,1\}[[:space:]]*$/\1/p' "$(harness_repo)/.claude/current-story.yaml" 2>/dev/null | head -n 1)"
+case "$budget" in S) limit=1 ;; M) limit=2 ;; L) limit=3 ;; *) limit=0 ;; esac
+step="$(printf '%s\n' "${valid[@]}" | sort -un | awk -v l="$level" '$1 <= l' | wc -l | tr -d ' ')"
+if [ "$limit" -gt 0 ] && [ "$step" -ge "$limit" ]; then
+  user="Context is at ${size}, which reaches the current story's budget (${budget}). Claude will stop at the next safe point and report."
+  model="HARNESS CONTEXT: this session's context is about ${size} (crossed $((level / 1000))K), which reaches the budget (${budget}) set in .claude/current-story.yaml. Stop at the next safe point: leave nothing half-edited, then report what is done (with verification evidence), what is left, and ask the user whether to continue, split the story, or start a fresh session."
+fi
 
 jq -nc --arg u "$user" --arg m "$model" \
   '{systemMessage: $u, hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $m}}'
