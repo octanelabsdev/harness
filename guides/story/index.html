@@ -1088,6 +1088,10 @@ in different places.</p>
 <p><strong>Answer these yourself.</strong> An open question answered by a guess is how the wrong thing gets built
 correctly. The card passes a deterministic lint and is recorded at <code>.claude/current-story.yaml</code>, which
 is what unlocks the pipeline gate.</p>
+<p>You can give the card a size: <code>budget: S</code>, <code>M</code> or <code>L</code>. When the build session's context reaches the
+first, second or third warning step (100K, 150K or 250K tokens by default), Claude stops at the next
+safe point and reports what's done and what's left, instead of carrying on. Without a budget the
+warnings are information only.</p>
 <h3 id="3-build">3. Build<a class="headerlink" href="#3-build" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>You:</strong> Build it.</p>
