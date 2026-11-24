@@ -1608,7 +1608,9 @@ re-checks against the diff. Load it when <code>review_gate</code> is on, or any 
 <p>Tests that prove the operator finished the task the code exists for: name the task in plain English,
 name the observable outcome, name the test as the user story, assert that outcome, and walk the
 journey once per feature. Covers write paths (add/edit/delete), not only the display. Load before
-writing or delegating tests for anything a user or operator touches.</p>
+writing or delegating tests for anything a user or operator touches. When an operator-facing feature
+or phase is finished, it also runs the project's black-box QA pass and produces the QA report without
+being asked. Guardrails VERIFY item V14 checks that the report path is quoted before "done".</p>
 <h3 id="rca"><code>rca</code><a class="headerlink" href="#rca" title="Permanent link">&para;</a></h3>
 <p>The post-feature RCA, for every feature — not only the broken ones: what went wrong before it shipped
 and what caught it, the error class, the guard that prevents it, and what was claimed without
