@@ -600,6 +600,10 @@ done
 for s in operator-tests rca voice; do
   grep -q "• $s " <<< "$NUDGE" && ok "nudge names the $s skill" || no "nudge lacks the $s skill"
 done
+grep -qF "QA report" <<< "$NUDGE" && grep -qF "## The QA report" "$HOOKS/../skills/operator-tests/SKILL.md" \
+  && grep -q '^- V14\. ' "$HOOKS/../skills/guardrails/references/VERIFY.md" \
+  && ok "a finished operator-facing feature still triggers the QA report (nudge, operator-tests, VERIFY V14)" \
+  || no "the QA report duty was dropped: features can be called done with no QA report"
 
 # ---- session_start_banner (SessionStart) ----
 echo "session_start_banner:"
