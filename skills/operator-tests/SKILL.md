@@ -35,6 +35,17 @@ each of those flows gets its own operator-task test.
 still unusable. The signal is operator-task verification: a system test where possible, a driven browser
 or real request where not. Quote it per guardrails VERIFY.
 
+## The QA report
+When an operator-facing feature or phase is finished, run the project's black-box QA pass before you
+call it done. Nobody has to ask for it. Drive the running dev or staging app as the operator, walk the
+key journeys, and produce the project's QA report. Your global ruleset or the project's QA config names
+the renderer and the output folder. Never hand-write a report the renderer is meant to produce, and
+never run the pass against production data. Open the report when it is written, and put its path in
+your done message.
+
+No QA report tooling or config in the project? Say so, and offer to set it up. Do not skip the step
+without a word.
+
 ## Delegating tests
 Put steps 1-3 (task, outcome, test name) in the brief, and reject returned tests whose names describe
 internals.

@@ -33,7 +33,8 @@ not wait to be asked and do not require a /command:
                       ready work to an engineer
   • story-writer    → when creating or refining a work item / ticket / story before implementation
   • operator-tests  → before writing, planning or delegating tests for a user- or operator-facing
-                      change, and before calling such a feature done
+                      change, and before calling such a feature or phase done (it runs
+                      the QA report then, unasked)
   • rca             → when a feature or fix is finished, after a correction from the user, and after
                       fixing a bug
   • voice           → before drafting a message the user will send under their own name

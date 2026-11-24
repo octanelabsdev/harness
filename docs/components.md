@@ -267,7 +267,9 @@ re-checks against the diff. Load it when `review_gate` is on, or any time you wa
 Tests that prove the operator finished the task the code exists for: name the task in plain English,
 name the observable outcome, name the test as the user story, assert that outcome, and walk the
 journey once per feature. Covers write paths (add/edit/delete), not only the display. Load before
-writing or delegating tests for anything a user or operator touches.
+writing or delegating tests for anything a user or operator touches. When an operator-facing feature
+or phase is finished, it also runs the project's black-box QA pass and produces the QA report without
+being asked. Guardrails VERIFY item V14 checks that the report path is quoted before "done".
 
 ### `rca`
 The post-feature RCA, for every feature — not only the broken ones: what went wrong before it shipped
